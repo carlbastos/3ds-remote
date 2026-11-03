@@ -60,8 +60,10 @@ Python이 없다면 [최신 릴리스](https://github.com/carlbastos/3ds-remote/
 3ds update [--force]              # GitHub 최신 릴리스 설치
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # x,y[:ms] ...
+3ds snap [file.png]                           # 400x480
+3ds screenshot [--screen bottom] file.png     # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:포트]`와 `THREEDS_TOKEN=<비밀번호>`는 설정 파일보다 우선합니다. `3ds logout`은 저장된 비밀번호를 지웁니다.

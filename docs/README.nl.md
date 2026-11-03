@@ -60,8 +60,10 @@ Koppel de eerste keer je computer aan de console. Druk in 3DS Remote op **Y** om
 3ds update [--force]              # installeert de nieuwste GitHub-release
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # x,y[:ms] ...
+3ds snap [file.png]                           # 400x480
+3ds screenshot [--screen bottom] file.png     # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:poort]` en `THREEDS_TOKEN=<wachtwoord>` gaan voor het configuratiebestand. `3ds logout` wist het bewaarde wachtwoord.

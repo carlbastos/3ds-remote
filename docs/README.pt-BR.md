@@ -65,7 +65,9 @@ Na primeira vez, pareie o Mac com o console. A senha aparece no 3DS Remote ao ap
 3ds update [--force]              # instala a última release do GitHub
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # segura e desliza pelos pontos x,y[:ms], depois solta
+3ds snap [arquivo.png]  # as duas telas numa imagem (tela de baixo em +40,+240)
 3ds screenshot [--screen bottom] arquivo.png   # PNG, JPEG, WebP... pela extensão
 ```
 

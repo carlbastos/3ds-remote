@@ -65,7 +65,9 @@ The first time, pair your computer with the console. Press **Y** in 3DS Remote t
 3ds update [--force]              # installs the latest GitHub release
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # touch-hold through x,y[:ms] points, then release
+3ds snap [file.png]  # both screens in one image (bottom screen at +40,+240)
 3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP... by extension
 ```
 
@@ -159,7 +161,7 @@ Every route except `/ping` requires `Authorization: Bearer <password>` (or `X-Au
 ## Notes
 
 - **NTR-HR**: the remote play command (901) needs its arguments in NTRViewer-HR's format (`arg3 = 1404036572`, `arg4 = UDP port`). The old NTR format takes NTR's networking down until the console is rebooted.
-- **Moving a HOME Menu icon** with `drag`: holding ~2 s lifts the icon; hovering ~4 s over a folder opens it; dropping only works on an **empty** slot.
+- **Moving a HOME Menu icon** with `drag`: holding ~2 s lifts the icon; hovering ~4 s over a folder opens it, and the icon must then be dropped on an **empty** slot inside (dropping on the folder icon itself snaps back). Hovering ~3 s over a folder's back tab closes it; dropping on an **occupied** HOME slot swaps the two icons, sending the other one into the folder. More in [`AGENTS.md`](AGENTS.md).
 - **CIA version**: makerom 0.19.0 ignores `-ver`/`-major`/`-minor`/`-micro` when building from an ELF and only takes the major part from the RSF's `RemasterVersion`. `build-cia.sh` passes the major part through the RSF and `tools/set-cia-version.py` writes the full X.Y.Z into the TMD and ticket (check with `ctrtool -p --intype=cia`). That is why the first valid release is v0.1.1.
 - `meta/app.rsf` comes from the buildtools template (Steveice10). Title ID `000400000FE3D500`, product code `CTR-P-RMTE`.
 - `tools/make_art.py` renders `meta/icon.png` and `meta/banner.png` (a small numpy sphere-tracer draws the 3D scene; needs numpy, Pillow and macOS's Avenir Next) and writes the silent `meta/audio.wav`. The PNGs are committed, so it only runs when the art changes. The banner is a flat image: bannertool puts it on a plane, so it has no stereoscopic depth.

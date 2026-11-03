@@ -60,8 +60,10 @@ pipx install "git+https://github.com/carlbastos/3ds-remote#subdirectory=client"
 3ds update [--force]              # 安装 GitHub 上的最新版本
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # x,y[:ms] ...
+3ds snap [file.png]                           # 400x480
+3ds screenshot [--screen bottom] file.png     # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:端口]` 和 `THREEDS_TOKEN=<密码>` 优先于配置文件。`3ds logout` 会删除已保存的密码。

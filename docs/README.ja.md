@@ -60,8 +60,10 @@ Python がない場合は、[最新リリース](https://github.com/carlbastos/3
 3ds update [--force]              # GitHub の最新リリースをインストール
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # x,y[:ms] ...
+3ds snap [file.png]                           # 400x480
+3ds screenshot [--screen bottom] file.png     # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:ポート]` と `THREEDS_TOKEN=<パスワード>` は設定ファイルより優先されます。`3ds logout` で保存したパスワードを削除します。

@@ -233,22 +233,23 @@ def ntr_heartbeat(s, seq):
         pass
 
 
-def ntr_grab(screen="top", timeout=8.0):
-    """Returns one complete JPEG frame (raw, still rotated) of the requested screen."""
+def ntr_grab_screens(screens=("top",), timeout=8.0):
+    """Returns {screen: JPEG} with one complete frame (raw, still rotated) of each requested screen,
+    all from the same remote-play stream; screens that never arrived are missing."""
     import socket
     import time
-    want_top = screen == "top"
     u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     u.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     u.bind(("0.0.0.0", 8001))
     u.settimeout(0.5)
     frames = {}
+    got = {}
     ctl = None
     seq = 3
     last_hb = 0
     deadline = time.monotonic() + timeout
     try:
-        while time.monotonic() < deadline:
+        while time.monotonic() < deadline and len(got) < len(screens):
             now = time.monotonic()
             if ctl and now - last_hb > 1:
                 ntr_heartbeat(ctl, seq)
@@ -264,25 +265,65 @@ def ntr_grab(screen="top", timeout=8.0):
             if len(data) < 5:
                 continue
             fid, flags, _fmt, seq = data[0], data[1], data[2], data[3]
-            if bool(flags & 1) != want_top:
+            screen = "top" if flags & 1 else "bottom"
+            if screen not in screens or screen in got:
                 continue
-            parts = frames.setdefault(fid, {})
+            parts = frames.setdefault((screen, fid), {})
             parts[seq] = data[4:]
             if flags & 0x10:  # last packet of this frame
                 if len(parts) == seq + 1:
                     jpeg = b"".join(parts[i] for i in range(seq + 1))
                     if jpeg[:2] == b"\xff\xd8":
-                        return jpeg
-                frames.pop(fid, None)
+                        got[screen] = jpeg
+                frames.pop((screen, fid), None)
     finally:
         u.close()
         if ctl:
             ctl.close()
-    return None
+    return got
 
 
-def ir_drag(x1, y1, x2, y2, grab_ms=1200, move_ms=1000, drop_ms=400):
-    """Touch-and-hold at (x1,y1), slide to (x2,y2), hold, release."""
+def ntr_grab(screen="top", timeout=8.0):
+    """Returns one complete JPEG frame (raw, still rotated) of the requested screen."""
+    return ntr_grab_screens((screen,), timeout).get(screen)
+
+
+SNAP_BOTTOM_OFFSET = (40, 240)   # where the bottom screen sits inside a snap image
+
+
+def compose_snap(top, bottom):
+    """Both screens as the console shows them: 400x480, bottom screen centred under the top one."""
+    from PIL import Image
+    out = Image.new("RGB", (400, 480), (0, 0, 0))
+    out.paste(top.convert("RGB"), (0, 0))
+    out.paste(bottom.convert("RGB"), SNAP_BOTTOM_OFFSET)
+    return out
+
+
+def parse_drag_points(args, grab_ms, drop_ms):
+    """`x1 y1 x2 y2` (legacy) or waypoints `x,y` / `x,y:hold_ms` -> [(x, y, hold_ms)].
+    Holds default to grab_ms for the first point and drop_ms for the others."""
+    if len(args) == 4 and all(a.lstrip("-").isdigit() for a in args):
+        args = [f"{args[0]},{args[1]}", f"{args[2]},{args[3]}"]
+    pts = []
+    for i, a in enumerate(args):
+        xy, _, ms = a.partition(":")
+        try:
+            x, y = (int(v) for v in xy.split(","))
+            hold = int(ms) if ms else (grab_ms if i == 0 else drop_ms)
+        except ValueError:
+            sys.exit(f"bad drag point {a!r}: use x,y or x,y:ms")
+        if not (0 <= x < 320 and 0 <= y < 240):
+            sys.exit("touch coordinates are 0-319 x 0-239")
+        pts.append((x, y, hold))
+    if len(pts) < 2:
+        sys.exit("drag needs at least two points")
+    return pts
+
+
+def ir_drag(points, move_ms=1000):
+    """Touches the first point, slides through the others and releases after the last.
+    points = [(x, y, hold_ms)]: each point is held for hold_ms once reached; move_ms per slide."""
     import socket
     import time
     host = host_ip()
@@ -294,14 +335,16 @@ def ir_drag(x1, y1, x2, y2, grab_ms=1200, move_ms=1000, drop_ms=400):
             s.sendto(ir_packet(touch=(x, y)), (host, 4950))
             time.sleep(0.016)
 
-    hold(x1, y1, grab_ms)
-    steps = max(1, move_ms // 16)
-    for i in range(1, steps + 1):
-        x = round(x1 + (x2 - x1) * i / steps)
-        y = round(y1 + (y2 - y1) * i / steps)
-        s.sendto(ir_packet(touch=(x, y)), (host, 4950))
-        time.sleep(0.016)
-    hold(x2, y2, drop_ms)
+    x0, y0, h0 = points[0]
+    hold(x0, y0, h0)
+    for x1, y1, h1 in points[1:]:
+        steps = max(1, move_ms // 16)
+        for i in range(1, steps + 1):
+            s.sendto(ir_packet(touch=(round(x0 + (x1 - x0) * i / steps), round(y0 + (y1 - y0) * i / steps))),
+                     (host, 4950))
+            time.sleep(0.016)
+        hold(x1, y1, h1)
+        x0, y0 = x1, y1
     for _ in range(5):
         s.sendto(ir_packet(), (host, 4950))
         time.sleep(0.016)
@@ -385,14 +428,18 @@ def main(argv=None):
     p.add_argument("--gap", type=int, default=150, help="ms between steps")
     p = sub.add_parser("touch", help="tap the bottom screen at x y (320x240)")
     p.add_argument("x", type=int); p.add_argument("y", type=int); p.add_argument("--hold", type=int, default=120)
-    p = sub.add_parser("drag", help="touch-hold, slide and release on the bottom screen")
-    for n in ("x1", "y1", "x2", "y2"):
-        p.add_argument(n, type=int)
-    p.add_argument("--grab", type=int, default=1200, help="ms to hold before moving")
-    p.add_argument("--move", type=int, default=1000, help="ms the slide takes")
-    p.add_argument("--drop", type=int, default=400, help="ms to hold at the destination")
+    p = sub.add_parser("drag", help="touch-hold, slide through points and release on the bottom screen",
+                       description="Points are x,y or x,y:ms (ms = how long to hold once there). "
+                                   "The legacy form x1 y1 x2 y2 still works. Example, moving a HOME "
+                                   "Menu icon out of a folder: 3ds drag 273,175:2200 57,55:3000 40,67:1000")
+    p.add_argument("points", nargs="+")
+    p.add_argument("--grab", type=int, default=1200, help="ms to hold the first point (default)")
+    p.add_argument("--move", type=int, default=1000, help="ms each slide takes")
+    p.add_argument("--drop", type=int, default=400, help="ms to hold the other points (default)")
     p = sub.add_parser("stick", help="hold the circle pad, x y in -1..1")
     p.add_argument("x", type=float); p.add_argument("y", type=float); p.add_argument("--hold", type=int, default=500)
+    p = sub.add_parser("snap", help="both screens in one 400x480 image (bottom screen at +40,+240)")
+    p.add_argument("out", nargs="?", default="3ds-snap.png")
     p = sub.add_parser("screenshot", help="grab a frame through NTR-HR remote play")
     p.add_argument("out", nargs="?", default="3ds-screen.png")
     p.add_argument("--screen", choices=["top", "bottom"], default="top")
@@ -542,10 +589,7 @@ def main(argv=None):
         ir_send(ir_packet(touch=(a.x, a.y)), a.hold)
 
     elif a.cmd == "drag":
-        for v, lim in ((a.x1, 320), (a.x2, 320), (a.y1, 240), (a.y2, 240)):
-            if not 0 <= v < lim:
-                sys.exit("touch coordinates are 0-319 x 0-239")
-        ir_drag(a.x1, a.y1, a.x2, a.y2, a.grab, a.move, a.drop)
+        ir_drag(parse_drag_points(a.points, a.grab, a.drop), a.move)
 
     elif a.cmd == "stick":
         ir_send(ir_packet(stick=(max(-1, min(1, a.x)), max(-1, min(1, a.y)))), a.hold)
@@ -556,6 +600,19 @@ def main(argv=None):
             sys.exit("no frame received: is NTR-HR running (BootNTR Selector) and is UDP 8001 allowed "
                      "through this computer's firewall?")
         print(save_screen(jpeg, a.out, a.rotate))
+
+    elif a.cmd == "snap":
+        try:
+            from PIL import Image
+        except ImportError:
+            sys.exit("snap needs Pillow (pip install pillow)")
+        got = ntr_grab_screens(("top", "bottom"))
+        if len(got) < 2:
+            sys.exit("no frame received: is NTR-HR running (BootNTR Selector) and is UDP 8001 allowed "
+                     "through this computer's firewall?")
+        up = {k: Image.open(io.BytesIO(v)).rotate(-270, expand=True) for k, v in got.items()}
+        compose_snap(up["top"], up["bottom"]).save(a.out)
+        print(a.out)
 
     elif a.cmd == "config":
         cfg = load_config()

@@ -45,6 +45,38 @@ class InputRedirectionTest(unittest.TestCase):
             cli.ir_packet(["Q"])
 
 
+class DragPointsTest(unittest.TestCase):
+    def test_legacy_four_numbers(self):
+        self.assertEqual(cli.parse_drag_points(["10", "20", "30", "40"], 1200, 400),
+                         [(10, 20, 1200), (30, 40, 400)])
+
+    def test_waypoints_with_holds(self):
+        self.assertEqual(cli.parse_drag_points(["273,175:2200", "57,55:3000", "40,67"], 1200, 400),
+                         [(273, 175, 2200), (57, 55, 3000), (40, 67, 400)])
+
+    def test_out_of_range_exits(self):
+        with self.assertRaises(SystemExit):
+            cli.parse_drag_points(["320,10", "0,0"], 1200, 400)
+
+    def test_single_point_exits(self):
+        with self.assertRaises(SystemExit):
+            cli.parse_drag_points(["5,5"], 1200, 400)
+
+    def test_garbage_exits(self):
+        with self.assertRaises(SystemExit):
+            cli.parse_drag_points(["a,b", "1,1"], 1200, 400)
+
+
+class SnapTest(unittest.TestCase):
+    def test_layout(self):
+        from PIL import Image
+        out = cli.compose_snap(Image.new("RGB", (400, 240), (255, 0, 0)), Image.new("RGB", (320, 240), (0, 0, 255)))
+        self.assertEqual(out.size, (400, 480))
+        self.assertEqual(out.getpixel((0, 0)), (255, 0, 0))
+        self.assertEqual(out.getpixel((40, 240)), (0, 0, 255))
+        self.assertEqual(out.getpixel((39, 300)), (0, 0, 0))     # black margin beside the bottom screen
+
+
 class CiaTest(unittest.TestCase):
     def test_reads_title_id_and_version(self):
         with tempfile.TemporaryDirectory() as d:

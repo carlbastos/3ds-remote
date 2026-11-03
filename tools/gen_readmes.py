@@ -471,8 +471,10 @@ def render(code, t):
 3ds update [--force]              # {t['c_update']}
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # x,y[:ms] ...
+3ds snap [file.png]                           # 400x480
+3ds screenshot [--screen bottom] file.png     # PNG, JPEG, WebP
 ```"""
     sec = "\n".join(f"- {s}" for s in t["sec"])
     boot = "\n".join(f"{i}. {s}" for i, s in enumerate(t["boot"], 1))

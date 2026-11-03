@@ -60,8 +60,10 @@ La prima volta, abbina il computer alla console. Premi **Y** in 3DS Remote per v
 3ds update [--force]              # installa l'ultima release di GitHub
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
-3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
+3ds touch 160 120 ; 3ds stick 1 0
+3ds drag 273,175:2200 57,55:3000 40,67:1000   # x,y[:ms] ...
+3ds snap [file.png]                           # 400x480
+3ds screenshot [--screen bottom] file.png     # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:porta]` e `THREEDS_TOKEN=<password>` hanno la precedenza sul file di configurazione. `3ds logout` cancella la password salvata.
