@@ -1,142 +1,146 @@
 # 3ds-remote
 
+**English** · [Português](docs/README.pt-BR.md) · [Español](docs/README.es.md) · [Русский](docs/README.ru.md) · [日本語](docs/README.ja.md) · [Français](docs/README.fr.md) · [Deutsch](docs/README.de.md) · [Italiano](docs/README.it.md) · [Nederlands](docs/README.nl.md) · [简体中文](docs/README.zh-CN.md) · [한국어](docs/README.ko.md) · [繁體中文](docs/README.zh-TW.md)
+
 [![build](https://github.com/carlbastos/3ds-remote/actions/workflows/build.yml/badge.svg)](https://github.com/carlbastos/3ds-remote/actions/workflows/build.yml)
 [![release](https://img.shields.io/github/v/release/carlbastos/3ds-remote)](https://github.com/carlbastos/3ds-remote/releases/latest)
 
-Controle de um New 3DS (Luma3DS) pela rede, a partir do Mac.
+Control a New 3DS running Luma3DS over the network from your computer.
 
-## Instalar
+## Install
 
-No 3DS, pelo **FBI → Remote Install → Scan QR Code**:
+On the 3DS, open **FBI → Remote Install → Scan QR Code**:
 
-![QR code da última versão](https://github.com/carlbastos/3ds-remote/releases/latest/download/3ds-remote-qr.png)
+![QR code for the latest release](https://github.com/carlbastos/3ds-remote/releases/latest/download/3ds-remote-qr.png)
 
-Cada [release](https://github.com/carlbastos/3ds-remote/releases) traz `3ds-remote.cia`, `3ds-remote.3dsx`, o cliente `3ds` e o QR daquela versão.
+Every [release](https://github.com/carlbastos/3ds-remote/releases) ships `3ds-remote.cia`, `3ds-remote.3dsx`, the `3ds` client and the QR code for that version.
 
-## Como funciona
+## How it works
 
-São três peças:
+There are three parts:
 
-| Peça | Onde roda | O que faz |
+| Part | Runs on | What it does |
 |---|---|---|
-| **3DS Remote** (`source/main.c`) | 3DS, como app (CIA ou `.3dsx`) | Servidor HTTP/JSON na porta **8080**: status, títulos, instalar/remover CIA, abrir títulos, arquivos do SD, reboot/shutdown |
-| **InputRedirection** da Rosalina | 3DS, em segundo plano | Recebe botões, toque e analógico por UDP **4950**, inclusive dentro de jogos |
-| **NTR-HR** (remote play) | 3DS, em segundo plano | Transmite as telas; o cliente pega um quadro como screenshot (TCP **8000** + UDP **8001**) |
+| **3DS Remote** (`source/`) | 3DS, as an app (CIA or `.3dsx`) | HTTP/JSON server on port **8080**: status, titles, install/remove CIAs, launch titles, SD card files, reboot/shutdown |
+| Rosalina **InputRedirection** | 3DS, in the background | Receives buttons, touch and circle pad over UDP **4950**, including inside games |
+| **NTR-HR** (remote play) | 3DS, in the background | Streams the screens; the client grabs a frame as a screenshot (TCP **8000** + UDP **8001**) |
 
-O cliente `3ds` (Python 3, só biblioteca padrão) fala com as três.
+The `3ds` client (Python 3, standard library only) talks to all three. `screenshot` uses macOS `sips` to rotate the image; everything else runs anywhere Python 3 does.
 
-## Uso
+## Usage
 
-Na primeira vez, pareie o Mac com o console. A senha aparece no 3DS Remote ao apertar **Y**:
+The first time, pair your computer with the console. Press **Y** in 3DS Remote to show the password:
 
 ```sh
-3ds login --host 192.168.1.241    # pede a senha e salva em ~/.config/3ds-remote/config.json (600)
+3ds login --host 192.168.1.241    # asks for the password, saves it to ~/.config/3ds-remote/config.json (600)
 ```
 
 ```sh
-3ds ping                          # sem senha: versão e se a senha está ligada
+3ds ping                          # no password needed: version and whether the password is on
 
-3ds status                        # bateria, Wi-Fi, SD, modelo, firmware, Luma
-3ds titles [--all] [--json]       # títulos instalados com nome
-3ds install jogo.cia [...]        # pula se a mesma versão já estiver instalada (--force)
-3ds launch <nome|tid>             # abre o título (o servidor fecha)
-3ds delete <nome|tid>
+3ds status                        # battery, Wi-Fi, SD card, model, firmware, Luma
+3ds titles [--all] [--json]       # installed titles with names
+3ds install game.cia [...]        # skips CIAs whose version is already installed (--force)
+3ds launch <name|tid>             # launches a title (the server closes)
+3ds delete <name|tid>
 3ds ls /3ds ; 3ds get /x [local] ; 3ds put local /x ; 3ds rm /x
 3ds reboot | shutdown | exit
-3ds update [--force]              # instala a última release do GitHub
+3ds update [--force]              # installs the latest GitHub release
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] arquivo.png
+3ds screenshot [--screen bottom] file.png
 ```
 
-`THREEDS=ip[:porta]` e `THREEDS_TOKEN=<senha>` sobrescrevem o arquivo de configuração. `3ds logout` apaga a senha salva.
+`THREEDS=ip[:port]` and `THREEDS_TOKEN=<password>` override the config file. `3ds logout` forgets the saved password.
 
-Os comandos `press`/`touch`/`drag`/`stick` precisam do InputRedirection ligado; `screenshot` precisa do NTR-HR carregado. Nenhum dos dois depende do servidor estar aberto.
+`press`/`touch`/`drag`/`stick` need InputRedirection enabled; `screenshot` needs NTR-HR loaded. Neither needs the server to be open.
 
-## No console
+## On the console
 
-| Tela | Conteúdo |
+| Screen | Contents |
 |---|---|
-| Superior | Endereço, estado (ONLINE / PAUSADO / SEM REDE), senha (oculta), bateria, Wi-Fi, progresso de transferências e os últimos pedidos |
-| Inferior (toque) | Mostrar senha (**Y**), nova senha aleatória (**X**), definir senha pelo teclado, ligar/desligar a exigência de senha, pausar (**SELECT**), sair (**START**) |
+| Top | Address, state (ONLINE / PAUSED / NO NETWORK), password (hidden), battery, Wi-Fi, transfer progress and the latest requests |
+| Bottom (touch) | Show password (**Y**), new random password (**X**), set password with the keyboard, turn the password requirement on/off, pause (**SELECT**), exit (**START**), language (**L/R**) |
 
-## Idiomas
+## Languages
 
-A interface do app está nos 12 idiomas do 3DS: português, inglês, espanhol, russo, japonês, francês, alemão, italiano, holandês, chinês simplificado, coreano e chinês tradicional. Por padrão ela segue o idioma do sistema. **L/R** ou o seletor no canto da tela de baixo trocam o idioma (*automático* → Português → … → 繁體中文), e a escolha fica salva no `config.ini` (`lang=auto|pt|en|es|ru|ja|fr|de|it|nl|zh|ko|tw`).
+The app's UI is available in all 12 languages the 3DS offers: Portuguese, English, Spanish, Russian, Japanese, French, German, Italian, Dutch, Simplified Chinese, Korean and Traditional Chinese. By default it follows the system language. **L/R**, or the selector in the corner of the bottom screen, cycles through them (*automatic* → Português → … → 繁體中文); the choice is saved in `config.ini` (`lang=auto|pt|en|es|ru|ja|fr|de|it|nl|zh|ko|tw`).
 
-Chinês e coreano usam as fontes de sistema CHN/KOR/TWN, que o app carrega quando precisa. Cada linha do log é desenhada com a fonte do idioma em que foi registrada.
+Chinese and Korean use the CHN/KOR/TWN system fonts, loaded when needed. Each log line is drawn with the font of the language it was logged in.
 
-Para traduzir ou corrigir textos: `source/i18n.c`. Uma tradução que falte cai para o inglês.
+To translate or fix strings, edit `source/i18n.c`. A missing translation falls back to English.
 
-## Segurança
+The translated READMEs in `docs/` cover the user-facing sections and are generated by `tools/gen_readmes.py` (the translations live in that script); this file and `docs/README.pt-BR.md` are edited by hand.
 
-- **Senha obrigatória** em todas as rotas, menos `/ping`, via `Authorization: Bearer <senha>`. Na primeira execução o app gera uma senha aleatória de 12 caracteres (gerador do serviço `ssl:C`) e a guarda em `sdmc:/config/3ds-remote/config.ini`.
-- Versões até a 0.2.0 guardavam a configuração em `/3ds/3ds-remote/`. O app move o arquivo para `/config/3ds-remote/` sozinho, porque o Homebrew Launcher lista toda pasta dentro de `/3ds` como se fosse um app.
-- A senha **só muda no console** (tela de toque). Nenhum endpoint altera a configuração e o `config.ini` não pode ser lido nem escrito pela API.
-- **5 senhas erradas seguidas** bloqueiam novos logins por 30 s (HTTP 429).
-- Caminhos com `..` ou `\` são recusados.
-- Toda leitura e escrita de rede tem tempo limite de 15 s, para um cliente parado não travar o servidor.
-- **Pausar** fecha a porta de verdade, e o servidor só escuta enquanto o app está aberto.
-- Desligar a senha pede confirmação (dois toques).
-- **Limite:** é HTTP sem TLS, então a senha passa em texto puro pela rede local. Use só em rede de confiança.
+## Security
 
-## Rotina a cada boot do 3DS
+- **Password required** on every route except `/ping`, via `Authorization: Bearer <password>`. On first run the app generates a random 12-character password (from the `ssl:C` RNG) and stores it in `sdmc:/config/3ds-remote/config.ini`.
+- Versions up to 0.2.0 kept the config in `/3ds/3ds-remote/`. The app moves it to `/config/3ds-remote/` automatically, because the Homebrew Launcher lists every folder under `/3ds` as an app.
+- The password **can only be changed on the console** (touch screen). No endpoint changes settings, and the API can neither read nor write `config.ini`.
+- **5 wrong passwords in a row** lock out logins for 30 s (HTTP 429).
+- Paths containing `..` or `\` are rejected.
+- Every network read and write times out after 15 s, so a stalled client can't hang the server.
+- **Pause** really closes the port, and the server only listens while the app is open.
+- Turning the password off asks for confirmation (two taps).
+- **Limitation:** this is plain HTTP without TLS, so the password crosses the local network in clear text. Only use it on a network you trust.
 
-1. Abrir **Boot NTR Selector** → caminho padrão → **3.6 HR**.
+## After every 3DS boot
+
+1. Open **Boot NTR Selector** → default path → **3.6 HR**.
 2. Rosalina (L+↓+Select) → *Miscellaneous options* → **Start InputRedirection**.
-3. Para o servidor: abrir **3DS Remote** (pasta H do menu).
+3. For the server: open **3DS Remote** from the HOME Menu.
 
 ## Build
 
-Requisitos: devkitPro com `3ds-dev` em `/opt/devkitpro`.
+Requirements: devkitPro with `3ds-dev` in `/opt/devkitpro`.
 
 ```sh
-./build-cia.sh      # gera 3ds-remote.3dsx e 3ds-remote.cia
+./build-cia.sh      # builds 3ds-remote.3dsx and 3ds-remote.cia
 ```
 
-Na primeira vez, `tools/fetch-tools.sh` baixa o makerom 0.19.0 (Project_CTR) e compila o bannertool 1.2.3 (fork do carstene1ns) em `tools/`. Nada disso é versionado.
+On first use, `tools/fetch-tools.sh` downloads makerom 0.19.0 (Project_CTR) and builds bannertool 1.2.3 (carstene1ns fork) into `tools/`. None of that is committed.
 
-O 3DS recusa CIA de mesma versão (`0xC8E083FC`), por isso toda mudança no app precisa de uma versão nova em `VERSION`.
+The 3DS refuses a CIA with the same version as the installed one (`0xC8E083FC`), so every change to the app needs a new version in `VERSION`.
 
-## CI e releases
+## CI and releases
 
-O workflow [`build`](.github/workflows/build.yml) roda no container `devkitpro/devkitarm`:
+The [`build`](.github/workflows/build.yml) workflow compiles in the `devkitpro/devkitarm` container:
 
-- **push / PR:** compila o `.3dsx` e o CIA e guarda tudo como artifact do run (com o QR code).
-- **tag `vX.Y.Z`:** confere se a tag bate com `VERSION`, compila e publica a release com CIA, 3dsx, cliente e QR code.
+- **push / PR:** builds the `.3dsx` and the CIA and keeps them, with the QR code, as run artifacts.
+- **tag `vX.Y.Z`:** checks that the tag matches `VERSION`, builds, and publishes a release with the CIA, 3dsx, client and QR code.
 
-Para lançar uma versão:
+To cut a release:
 
 ```sh
-tools/release.sh 0.2.0     # atualiza VERSION, commita, cria a tag v0.2.0 e faz push
-gh run watch               # acompanha o build
-3ds update                 # instala no 3DS (com o servidor aberto)
+tools/release.sh X.Y.Z     # updates VERSION, commits, tags vX.Y.Z and pushes
+gh run watch               # follow the build
+3ds update                 # install it on the 3DS (with the server open)
 ```
 
-Para testar sem instalar: Homebrew Launcher → **Y**, depois
-`/opt/devkitpro/tools/bin/3dslink -a 192.168.1.241 3ds-remote.3dsx`.
+To test without installing: Homebrew Launcher → **Y**, then
+`/opt/devkitpro/tools/bin/3dslink -a <3DS IP> 3ds-remote.3dsx`.
 
 ## Endpoints
 
-| Método | Caminho | Notas |
+| Method | Path | Notes |
 |---|---|---|
-| GET | `/ping` | sem senha |
+| GET | `/ping` | no password |
 | GET | `/status` | |
-| GET | `/titles?media=sd\|nand\|card` | nome vem do SMDH |
-| POST | `/install?media=sd` | corpo = CIA cru, com `Content-Length` |
+| GET | `/titles?media=sd\|nand\|card` | names come from the SMDH |
+| POST | `/install?media=sd` | body = raw CIA, with `Content-Length` |
 | POST | `/delete?tid=HEX&media=sd` | |
-| POST | `/launch?tid=HEX&media=sd` | o app sai para abrir o título |
+| POST | `/launch?tid=HEX&media=sd` | the app exits to launch the title |
 | GET | `/ls?path=/dir` | |
-| GET/PUT/DELETE | `/file?path=/x` | PUT cria as pastas pai |
+| GET/PUT/DELETE | `/file?path=/x` | PUT creates parent folders |
 | POST | `/reboot`, `/shutdown`, `/exit` | |
 
-Todas as rotas, menos `/ping`, exigem `Authorization: Bearer <senha>` (ou `X-Auth-Token`). Erros vêm como `{"error": "...", "result": "0x..."}`, com 401 (sem senha ou senha errada) e 429 (bloqueado).
+Every route except `/ping` requires `Authorization: Bearer <password>` (or `X-Auth-Token`). Errors look like `{"error": "...", "result": "0x..."}`, with 401 (missing or wrong password) and 429 (locked out).
 
-## Notas
+## Notes
 
-- **NTR-HR**: o comando de remote play (901) precisa dos argumentos no formato do NTRViewer-HR (`arg3 = 1404036572`, `arg4 = porta UDP`). O formato antigo do NTR derruba a rede do NTR até reiniciar o console.
-- **Mover ícone no HOME Menu** pelo `drag`: segurar ~2 s levanta o ícone; parar ~4 s sobre uma pasta abre a pasta; soltar só funciona em espaço **vazio**.
-- **Versão do CIA**: o makerom 0.19.0 ignora `-ver`/`-major`/`-minor`/`-micro` em builds a partir do ELF e só usa o `RemasterVersion` do RSF como major. O `build-cia.sh` passa o major pelo RSF e o `tools/set-cia-version.py` grava o X.Y.Z completo no TMD e no ticket (confira com `ctrtool -p --intype=cia`). Por isso a primeira release válida é a v0.1.1.
-- `meta/app.rsf` vem do template do buildtools (Steveice10). Title ID `000400000FE3D500`, product code `CTR-P-RMTE`.
-- `tools/make_art.py` gera `meta/icon.png`, `meta/banner.png` e `meta/audio.wav`.
+- **NTR-HR**: the remote play command (901) needs its arguments in NTRViewer-HR's format (`arg3 = 1404036572`, `arg4 = UDP port`). The old NTR format takes NTR's networking down until the console is rebooted.
+- **Moving a HOME Menu icon** with `drag`: holding ~2 s lifts the icon; hovering ~4 s over a folder opens it; dropping only works on an **empty** slot.
+- **CIA version**: makerom 0.19.0 ignores `-ver`/`-major`/`-minor`/`-micro` when building from an ELF and only takes the major part from the RSF's `RemasterVersion`. `build-cia.sh` passes the major part through the RSF and `tools/set-cia-version.py` writes the full X.Y.Z into the TMD and ticket (check with `ctrtool -p --intype=cia`). That is why the first valid release is v0.1.1.
+- `meta/app.rsf` comes from the buildtools template (Steveice10). Title ID `000400000FE3D500`, product code `CTR-P-RMTE`.
+- `tools/make_art.py` generates `meta/icon.png`, `meta/banner.png` and `meta/audio.wav`.

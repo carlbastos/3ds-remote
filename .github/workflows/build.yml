@@ -88,19 +88,19 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           qr="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/3ds-remote-qr.png"
           cat > notes.md <<EOF
-          ## Instalar no 3DS
+          ## Install on the 3DS
 
           **FBI:** Remote Install → Scan QR Code
 
           ![QR code](${qr})
 
-          Ou, do Mac, com o servidor já aberto no console: \`3ds update\`
+          Or, from your computer with the server already open on the console: \`3ds update\`
 
-          | Arquivo | Uso |
+          | File | Use |
           |---|---|
-          | \`3ds-remote.cia\` | app para o HOME Menu (title ID \`000400000FE3D500\`) |
+          | \`3ds-remote.cia\` | HOME Menu app (title ID \`000400000FE3D500\`) |
           | \`3ds-remote.3dsx\` | Homebrew Launcher / \`3dslink\` |
-          | \`3ds\` | cliente para o Mac (Python 3) |
+          | \`3ds\` | client for your computer (Python 3) |
           EOF
           gh release create "$tag" \
             --repo "$GITHUB_REPOSITORY" \
