@@ -79,14 +79,14 @@ static void server_main(void *arg) {
 void server_start(void) {
     socbuf = memalign(0x1000, SOC_BUFSIZE);
     if (!socbuf || R_FAILED(socInit(socbuf, SOC_BUFSIZE))) {
-        log_add("socInit falhou");
+        log_add("%s", tr(S_LOG_SOC_FAILED));
         return;
     }
     s32 prio = 0x30;
     svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
     // Slightly higher priority than the GUI so requests are served promptly; it blocks on I/O.
     thread = threadCreate(server_main, NULL, STACK_SIZE, prio - 1, -2, false);
-    if (!thread) log_add("thread do servidor falhou");
+    if (!thread) log_add("%s", tr(S_LOG_THREAD_FAILED));
 }
 
 void server_stop(void) {

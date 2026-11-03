@@ -4,12 +4,15 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "i18n.h"
+
 #define PORT        8080   // 8000/8001 belong to NTR remote play
 #define CHUNK       0x20000
 #define HDR_MAX     8192
 #define TOKEN_MAX   32
 #define LOG_LINES   8
-#define CONFIG_DIR  "sdmc:/3ds/3ds-remote"
+#define CONFIG_DIR  "sdmc:/config/3ds-remote"
+#define OLD_CONFIG_DIR "sdmc:/3ds/3ds-remote"   // used up to v0.2.0
 #define CONFIG_PATH CONFIG_DIR "/config.ini"
 
 // Requests from the network that only the main thread may carry out.
@@ -21,6 +24,7 @@ typedef struct {
     // persisted in config.ini
     char token[TOKEN_MAX + 1];
     bool auth;              // require the token on every request except /ping
+    lang_t lang;            // LANG_AUTO follows the system language
 
     // runtime
     bool paused;            // listening socket closed on purpose
@@ -28,8 +32,9 @@ typedef struct {
     u32 requests;
     u32 auth_failures;      // consecutive failed logins
     u64 locked_until;       // osGetTime() ms; logins refused until then
-    char activity[64];      // e.g. "Instalando CIA 42%"
-    char log[LOG_LINES][64];
+    char activity[96];      // e.g. "Instalando CIA 42%"
+    char log[LOG_LINES][96];
+    lang_t log_lang[LOG_LINES];   // language each line was written in (picks the font)
     int log_next;
 
     // main-thread actions
@@ -49,6 +54,7 @@ void token_generate(char *out, size_t len);
 bool token_matches(const char *candidate);
 void log_add(const char *fmt, ...);
 void activity_set(const char *fmt, ...);
+void utf8_trim(char *s);   // drops a multibyte sequence cut off by truncation
 
 // server.c
 void server_start(void);

@@ -13,7 +13,7 @@
 //   DELETE /file?path=/x                 delete an SD file or empty dir
 //   POST   /reboot | /shutdown | /exit
 //
-// The password lives in sdmc:/3ds/3ds-remote/config.ini and can only be changed on the console.
+// The password lives in sdmc:/config/3ds-remote/config.ini and can only be changed on the console.
 
 #include "common.h"
 
@@ -22,22 +22,22 @@ bool have_mcu, have_ptmsysm;
 static void run_pending(void) {
     switch (g.pending) {
         case ACT_REBOOT:
-            log_add("reiniciando");
+            log_add("%s", tr(S_LOG_REBOOTING));
             if (have_ptmsysm) PTMSYSM_RebootAsync(0);
             else APT_HardwareResetAsync();
             g.pending = ACT_NONE;
             break;
         case ACT_SHUTDOWN:
-            log_add("desligando");
+            log_add("%s", tr(S_LOG_SHUTTING_DOWN));
             if (have_ptmsysm) PTMSYSM_ShutdownAsync(0);
             g.pending = ACT_NONE;
             break;
         case ACT_LAUNCH: {
             static u8 param[0x300], hmac[0x20];
-            log_add("abrindo %016llX", g.launch_tid);
+            log_add(tr(S_LOG_LAUNCHING), g.launch_tid);
             Result r = APT_PrepareToDoApplicationJump(0, g.launch_tid, g.launch_mt);
             if (R_SUCCEEDED(r)) r = APT_DoApplicationJump(param, sizeof param, hmac);
-            if (R_FAILED(r)) log_add("falha ao abrir: %08lX", r);
+            if (R_FAILED(r)) log_add(tr(S_LOG_LAUNCH_FAILED), r);
             g.pending = ACT_NONE;   // on success aptMainLoop() returns false and we exit
             break;
         }
@@ -58,7 +58,7 @@ int main(void) {
     config_load();
     gui_init();
     server_start();
-    log_add("servidor iniciado");
+    log_add("%s", tr(S_LOG_STARTED));
 
     while (aptMainLoop()) {
         hidScanInput();

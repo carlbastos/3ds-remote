@@ -89,7 +89,7 @@ static bool sd_path(const char *q, char *out, size_t outsz) {
         if (*s == '/') s++;
     }
     snprintf(out, outsz, "sdmc:%s", p);
-    return strcasecmp(out, CONFIG_PATH) != 0;
+    return strcasecmp(out, CONFIG_PATH) != 0 && strcasecmp(out, OLD_CONFIG_DIR "/config.ini") != 0;
 }
 
 static void mkdirs(const char *path) {  // creates every parent of path
@@ -201,21 +201,21 @@ static void h_install(int fd, req_t *rq) {
     Handle cia;
     Result r = AM_StartCiaInstall(mt, &cia);
     if (R_FAILED(r)) { send_err(fd, 500, "AM_StartCiaInstall failed", r); return; }
-    log_add("instalando CIA (%lld MB)", rq->clen >> 20);
+    log_add(tr(S_LOG_INSTALLING), rq->clen >> 20);
     cia_err = 0;
-    long long got = recv_body(fd, rq, cia_sink, &cia, "Instalando CIA");
+    long long got = recv_body(fd, rq, cia_sink, &cia, tr(S_ACT_INSTALLING));
     if (got != rq->clen) {
         AM_CancelCIAInstall(cia);
         char msg[96];
         if (got < 0) snprintf(msg, sizeof msg, "AM write failed at offset %llu", cia_err_off);
         else snprintf(msg, sizeof msg, "connection ended early");
-        log_add("instalação falhou %08lX", cia_err);
+        log_add(tr(S_LOG_INSTALL_FAILED), cia_err);
         send_err(fd, 500, msg, got < 0 ? cia_err : 0);
         return;
     }
     r = AM_FinishCiaInstall(cia);
-    if (R_FAILED(r)) { log_add("instalação falhou %08lX", r); send_err(fd, 500, "AM_FinishCiaInstall failed", r); return; }
-    log_add("CIA instalado");
+    if (R_FAILED(r)) { log_add(tr(S_LOG_INSTALL_FAILED), r); send_err(fd, 500, "AM_FinishCiaInstall failed", r); return; }
+    log_add("%s", tr(S_LOG_INSTALLED));
     send_ok(fd);
 }
 
@@ -224,7 +224,7 @@ static void h_delete(int fd, req_t *rq) {
     if (!tid_param(rq->query, &tid)) { send_err(fd, 400, "tid required (hex)", 0); return; }
     Result r = AM_DeleteTitle(media_param(rq->query), tid);
     if (R_FAILED(r)) { send_err(fd, 500, "AM_DeleteTitle failed", r); return; }
-    log_add("removido %016llX", tid);
+    log_add(tr(S_LOG_DELETED), tid);
     send_ok(fd);
 }
 
@@ -284,7 +284,7 @@ static void h_file_put(int fd, req_t *rq) {
     FILE *f = fopen(path, "wb");
     if (!f) { send_err(fd, 500, strerror(errno), 0); return; }
     setvbuf(f, NULL, _IOFBF, CHUNK);
-    long long got = rq->clen > 0 ? recv_body(fd, rq, file_sink, f, "Recebendo arquivo") : 0;
+    long long got = rq->clen > 0 ? recv_body(fd, rq, file_sink, f, tr(S_ACT_RECEIVING)) : 0;
     bool closed = fclose(f) == 0;
     if (got != rq->clen || !closed) { remove(path); send_err(fd, 500, "upload incomplete", 0); return; }
     send_ok(fd);
@@ -329,7 +329,7 @@ static bool authorize(int fd, req_t *rq) {
     LightLock_Unlock(&g.lock);
 
     if (ok) return true;
-    if (lock_now) log_add("senha errada %dx: bloqueado %ds", MAX_FAILURES, LOCKOUT_MS / 1000);
+    if (lock_now) log_add(tr(S_LOG_LOCKED), MAX_FAILURES, LOCKOUT_MS / 1000);
     if (locked || lock_now) send_err(fd, 429, "too many failed logins; try again in 30s", 0);
     else send_err(fd, 401, rq->token[0] ? "wrong token" : "token required", 0);
     return false;

@@ -61,9 +61,18 @@ Os comandos `press`/`touch`/`drag`/`stick` precisam do InputRedirection ligado; 
 | Superior | Endereço, estado (ONLINE / PAUSADO / SEM REDE), senha (oculta), bateria, Wi-Fi, progresso de transferências e os últimos pedidos |
 | Inferior (toque) | Mostrar senha (**Y**), nova senha aleatória (**X**), definir senha pelo teclado, ligar/desligar a exigência de senha, pausar (**SELECT**), sair (**START**) |
 
+## Idiomas
+
+A interface do app está nos 12 idiomas do 3DS: português, inglês, espanhol, russo, japonês, francês, alemão, italiano, holandês, chinês simplificado, coreano e chinês tradicional. Por padrão ela segue o idioma do sistema. **L/R** ou o seletor no canto da tela de baixo trocam o idioma (*automático* → Português → … → 繁體中文), e a escolha fica salva no `config.ini` (`lang=auto|pt|en|es|ru|ja|fr|de|it|nl|zh|ko|tw`).
+
+Chinês e coreano usam as fontes de sistema CHN/KOR/TWN, que o app carrega quando precisa. Cada linha do log é desenhada com a fonte do idioma em que foi registrada.
+
+Para traduzir ou corrigir textos: `source/i18n.c`. Uma tradução que falte cai para o inglês.
+
 ## Segurança
 
-- **Senha obrigatória** em todas as rotas, menos `/ping`, via `Authorization: Bearer <senha>`. Na primeira execução o app gera uma senha aleatória de 12 caracteres (gerador do serviço `ssl:C`) e a guarda em `sdmc:/3ds/3ds-remote/config.ini`.
+- **Senha obrigatória** em todas as rotas, menos `/ping`, via `Authorization: Bearer <senha>`. Na primeira execução o app gera uma senha aleatória de 12 caracteres (gerador do serviço `ssl:C`) e a guarda em `sdmc:/config/3ds-remote/config.ini`.
+- Versões até a 0.2.0 guardavam a configuração em `/3ds/3ds-remote/`. O app move o arquivo para `/config/3ds-remote/` sozinho, porque o Homebrew Launcher lista toda pasta dentro de `/3ds` como se fosse um app.
 - A senha **só muda no console** (tela de toque). Nenhum endpoint altera a configuração e o `config.ini` não pode ser lido nem escrito pela API.
 - **5 senhas erradas seguidas** bloqueiam novos logins por 30 s (HTTP 429).
 - Caminhos com `..` ou `\` são recusados.
