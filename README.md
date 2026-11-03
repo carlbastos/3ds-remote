@@ -1,6 +1,19 @@
 # 3ds-remote
 
+[![build](https://github.com/carlbastos/3ds-remote/actions/workflows/build.yml/badge.svg)](https://github.com/carlbastos/3ds-remote/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/carlbastos/3ds-remote)](https://github.com/carlbastos/3ds-remote/releases/latest)
+
 Controle de um New 3DS (Luma3DS) pela rede, a partir do Mac.
+
+## Instalar
+
+No 3DS, pelo **FBI → Remote Install → Scan QR Code**:
+
+![QR code da última versão](https://github.com/carlbastos/3ds-remote/releases/latest/download/3ds-remote-qr.png)
+
+Cada [release](https://github.com/carlbastos/3ds-remote/releases) traz `3ds-remote.cia`, `3ds-remote.3dsx`, o cliente `3ds` e o QR daquela versão.
+
+## Como funciona
 
 São três peças:
 
@@ -24,6 +37,7 @@ export THREEDS=192.168.1.241      # padrão; aceita ip:porta
 3ds delete <nome|tid>
 3ds ls /3ds ; 3ds get /x [local] ; 3ds put local /x ; 3ds rm /x
 3ds reboot | shutdown | exit
+3ds update [--force]              # instala a última release do GitHub
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
@@ -48,7 +62,22 @@ Requisitos: devkitPro com `3ds-dev` em `/opt/devkitpro`.
 
 Na primeira vez, `tools/fetch-tools.sh` baixa o makerom 0.19.0 (Project_CTR) e compila o bannertool 1.2.3 (fork do carstene1ns) em `tools/`. Nada disso é versionado.
 
-Para atualizar o app instalado: subir `VERSION`, rodar `./build-cia.sh` e `3ds install 3ds-remote.cia`. O 3DS recusa CIA de mesma versão (`0xC8E083FC`).
+O 3DS recusa CIA de mesma versão (`0xC8E083FC`), por isso toda mudança no app precisa de uma versão nova em `VERSION`.
+
+## CI e releases
+
+O workflow [`build`](.github/workflows/build.yml) roda no container `devkitpro/devkitarm`:
+
+- **push / PR:** compila o `.3dsx` e o CIA e guarda tudo como artifact do run (com o QR code).
+- **tag `vX.Y.Z`:** confere se a tag bate com `VERSION`, compila e publica a release com CIA, 3dsx, cliente e QR code.
+
+Para lançar uma versão:
+
+```sh
+tools/release.sh 0.2.0     # atualiza VERSION, commita, cria a tag v0.2.0 e faz push
+gh run watch               # acompanha o build
+3ds update                 # instala no 3DS (com o servidor aberto)
+```
 
 Para testar sem instalar: Homebrew Launcher → **Y**, depois
 `/opt/devkitpro/tools/bin/3dslink -a 192.168.1.241 3ds-remote.3dsx`.

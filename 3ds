@@ -11,6 +11,7 @@ import sys
 import urllib.parse
 
 HOST = os.environ.get("THREEDS", "192.168.1.241")
+REPO = os.environ.get("THREEDS_REPO", "carlbastos/3ds-remote")
 if ":" not in HOST:
     HOST += ":8080"
 
@@ -279,6 +280,8 @@ def main():
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("install"); p.add_argument("cia", nargs="+"); p.add_argument("--media", default="sd")
     p.add_argument("--force", action="store_true", help="send even if the same version looks installed")
+    p = sub.add_parser("update", help="install the latest 3ds-remote release from GitHub")
+    p.add_argument("--force", action="store_true")
     p = sub.add_parser("delete"); p.add_argument("title"); p.add_argument("--media", default="sd")
     p = sub.add_parser("launch"); p.add_argument("title"); p.add_argument("--media", default="sd")
     p = sub.add_parser("ls"); p.add_argument("path", nargs="?", default="/")
@@ -348,6 +351,25 @@ def main():
                     sys.exit(f"{os.path.basename(cia)}: the 3DS refused it, same or newer version already installed")
                 raise
             print("installed")
+
+    elif a.cmd == "update":
+        import tempfile
+        import urllib.request
+        url = f"https://github.com/{REPO}/releases/latest/download/3ds-remote.cia"
+        with tempfile.TemporaryDirectory() as d:
+            cia = os.path.join(d, "3ds-remote.cia")
+            print(f"downloading {url}")
+            urllib.request.urlretrieve(url, cia)
+            info = cia_info(cia)
+            if not info:
+                sys.exit("downloaded file is not a valid CIA")
+            installed = {t["tid"]: t for t in call("GET", "/titles", timeout=120)}
+            cur = installed.get(info[0])
+            if cur and cur.get("version", -1) >= info[1] and not a.force:
+                print(f"already up to date (v{vstr(cur['version'])})")
+                return
+            upload("POST", "/install", {"media": "sd"}, cia, f"3ds-remote v{vstr(info[1])}")
+            print("installed; reopen 3DS Remote from the HOME Menu to use the new version")
 
     elif a.cmd == "delete":
         t = find_title(a.title, a.media)

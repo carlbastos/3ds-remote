@@ -2,8 +2,9 @@
 # Builds 3ds-remote.3dsx and 3ds-remote.cia (title ID 000400000FE3D500), versioned from ./VERSION.
 set -e
 cd "$(dirname "$0")"
-export DEVKITPRO=/opt/devkitpro DEVKITARM=/opt/devkitpro/devkitARM
-export PATH=/opt/devkitpro/tools/bin:/opt/devkitpro/devkitARM/bin:$PATH
+export DEVKITPRO="${DEVKITPRO:-/opt/devkitpro}"
+export DEVKITARM="${DEVKITARM:-$DEVKITPRO/devkitARM}"
+export PATH="$DEVKITPRO/tools/bin:$DEVKITARM/bin:$PATH"
 
 tools/fetch-tools.sh
 

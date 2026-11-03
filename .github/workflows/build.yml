@@ -1,0 +1,104 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends curl ca-certificates unzip g++ python3 qrencode
+
+      - name: Check tag matches VERSION
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(cat VERSION)"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::tag v$tag does not match VERSION ($ver)"
+            exit 1
+          fi
+
+      - name: Check client
+        run: python3 -m py_compile 3ds
+
+      - name: Cache CIA tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            tools/makerom
+            tools/bannertool
+            tools/bannertool-src
+          key: cia-tools-${{ runner.os }}-${{ hashFiles('tools/fetch-tools.sh') }}
+
+      - name: Build 3dsx and CIA
+        run: ./build-cia.sh
+
+      - name: QR code for the release CIA
+        run: |
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v$(cat VERSION)/3ds-remote.cia"
+          echo "$url" > qr-url.txt
+          qrencode -o 3ds-remote-qr.png -s 8 -m 2 "$url"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3ds-remote-${{ github.sha }}
+          path: |
+            3ds-remote.cia
+            3ds-remote.3dsx
+            3ds-remote-qr.png
+            qr-url.txt
+            3ds
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: 3ds-remote-${{ github.sha }}
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          qr="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/3ds-remote-qr.png"
+          cat > notes.md <<EOF
+          ## Instalar no 3DS
+
+          **FBI:** Remote Install → Scan QR Code
+
+          ![QR code](${qr})
+
+          Ou, do Mac, com o servidor já aberto no console: \`3ds update\`
+
+          | Arquivo | Uso |
+          |---|---|
+          | \`3ds-remote.cia\` | app para o HOME Menu (title ID \`000400000FE3D500\`) |
+          | \`3ds-remote.3dsx\` | Homebrew Launcher / \`3dslink\` |
+          | \`3ds\` | cliente para o Mac (Python 3) |
+          EOF
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "3ds-remote ${tag}" \
+            --notes-file notes.md \
+            --generate-notes \
+            3ds-remote.cia 3ds-remote.3dsx 3ds-remote-qr.png 3ds
