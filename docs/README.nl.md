@@ -25,7 +25,19 @@ Er zijn drie onderdelen:
 | **InputRedirection** van Rosalina | 3DS, op de achtergrond | Ontvangt knoppen, aanraakscherm en Circle Pad via UDP **4950**, ook in games |
 | **NTR-HR** (remote play) | 3DS, op de achtergrond | Streamt de schermen; de client pakt één beeld als screenshot (TCP **8000** + UDP **8001**) |
 
-De client `3ds` (Python 3, alleen de standaardbibliotheek) praat met alle drie. `screenshot` draait het beeld met `sips` van macOS; de rest werkt overal waar Python 3 draait.
+De client `3ds` werkt op Windows, macOS en Linux en praat met alle drie.
+
+## De client installeren
+
+Met Python 3.9 of nieuwer, op elk besturingssysteem:
+
+```sh
+pipx install "git+https://github.com/carlbastos/3ds-remote#subdirectory=client"
+```
+
+Zonder Python download je het uitvoerbare bestand voor jouw systeem uit de [nieuwste release](https://github.com/carlbastos/3ds-remote/releases/latest): `3ds-windows-x64.exe`, `3ds-macos-arm64` of `3ds-linux-x64`. Op macOS en Linux eerst `chmod +x`; macOS vraagt mogelijk om toestemming in *Systeeminstellingen → Privacy en beveiliging*, omdat het bestand niet ondertekend is.
+
+`3ds config` toont waar de instellingen staan (`%APPDATA%\3ds-remote` op Windows, `~/.config/3ds-remote` op macOS en Linux). `screenshot` ontvangt het beeld op UDP-poort **8001**, dus de eerste keer kan de firewall om toestemming vragen.
 
 ## Gebruik
 
@@ -49,7 +61,7 @@ Koppel de eerste keer je computer aan de console. Druk in 3DS Remote op **Y** om
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png
+3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:poort]` en `THREEDS_TOKEN=<wachtwoord>` gaan voor het configuratiebestand. `3ds logout` wist het bewaarde wachtwoord.

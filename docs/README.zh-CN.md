@@ -25,7 +25,19 @@
 | Rosalina 的 **InputRedirection** | 3DS，后台 | 通过 UDP **4950** 接收按键、触摸和摇杆输入，游戏中也可以 |
 | **NTR-HR**（远程游玩） | 3DS，后台 | 串流画面；客户端截取一帧作为截图（TCP **8000** + UDP **8001**） |
 
-客户端 `3ds`（Python 3，仅用标准库）与这三部分通信。`screenshot` 使用 macOS 的 `sips` 旋转图像；其余功能在任何装有 Python 3 的系统上都能用。
+客户端 `3ds` 可在 Windows、macOS 和 Linux 上运行，并与这三部分通信。
+
+## 安装客户端
+
+在任何系统上，只要有 Python 3.9 或更高版本：
+
+```sh
+pipx install "git+https://github.com/carlbastos/3ds-remote#subdirectory=client"
+```
+
+没有 Python 的话，请从[最新发布版本](https://github.com/carlbastos/3ds-remote/releases/latest)下载对应系统的可执行文件：`3ds-windows-x64.exe`、`3ds-macos-arm64` 或 `3ds-linux-x64`。在 macOS 和 Linux 上先运行 `chmod +x`；由于未签名，macOS 可能会要求在 *系统设置 → 隐私与安全性* 中允许运行。
+
+`3ds config` 会显示配置文件的位置（Windows 为 `%APPDATA%\3ds-remote`，macOS 和 Linux 为 `~/.config/3ds-remote`）。`screenshot` 通过 UDP 端口 **8001** 接收画面，因此首次使用时防火墙可能会请求许可。
 
 ## 使用方法
 
@@ -49,7 +61,7 @@
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png
+3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:端口]` 和 `THREEDS_TOKEN=<密码>` 优先于配置文件。`3ds logout` 会删除已保存的密码。

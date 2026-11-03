@@ -33,8 +33,10 @@ jobs:
             exit 1
           fi
 
-      - name: Check client
-        run: python3 -m py_compile 3ds
+      - name: Check client version matches VERSION
+        run: |
+          grep -qx "__version__ = \"$(cat VERSION)\"" client/threeds_remote/__init__.py \
+            || { echo "::error::client/threeds_remote/__init__.py does not match VERSION"; exit 1; }
 
       - name: Cache CIA tools
         uses: actions/cache@v4
@@ -67,11 +69,75 @@ jobs:
             3ds-remote.3dsx
             3ds-remote-qr.png
             qr-url.txt
-            3ds
+          if-no-files-found: error
+
+  client:
+    name: client (${{ matrix.os }}, Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.13"]
+        include:
+          - { os: ubuntu-latest, python: "3.9" }
+          - { os: windows-latest, python: "3.9" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: python -m pip install ./client
+      - name: Commands load
+        run: |
+          3ds --version
+          3ds --help
+          3ds config
+      - name: Unit tests
+        run: python -m unittest discover -s client/tests -v
+      - name: Clear error without a 3DS address
+        shell: bash
+        run: |
+          out=$(3ds status 2>&1) && { echo "expected a failure"; exit 1; } || true
+          echo "$out"
+          echo "$out" | grep -q "3ds login --host"
+
+  client-binary:
+    name: binary (${{ matrix.asset }})
+    needs: client
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, asset: 3ds-linux-x64 }
+          - { os: macos-latest, asset: 3ds-macos-arm64 }
+          - { os: windows-latest, asset: 3ds-windows-x64.exe }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build standalone executable
+        shell: bash
+        run: |
+          python -m pip install ./client pyinstaller
+          pyinstaller --onefile --name 3ds client/pyinstaller_entry.py
+          mv dist/3ds* "dist/${{ matrix.asset }}"
+      - name: Smoke test
+        shell: bash
+        run: |
+          "./dist/${{ matrix.asset }}" --version
+          "./dist/${{ matrix.asset }}" --help >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3ds-client-${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
           if-no-files-found: error
 
   release:
-    needs: build
+    needs: [build, client-binary]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -79,7 +145,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: 3ds-remote-${{ github.sha }}
+          pattern: 3ds-*
+          merge-multiple: true
 
       - name: Create release
         env:
@@ -96,15 +163,24 @@ jobs:
 
           Or, from your computer with the server already open on the console: \`3ds update\`
 
+          ## Client for your computer
+
+          With Python 3.9+: \`pipx install "git+https://github.com/${GITHUB_REPOSITORY}@${tag}#subdirectory=client"\`
+
+          Or download a standalone executable below (on macOS/Linux: \`chmod +x\` it first).
+
           | File | Use |
           |---|---|
           | \`3ds-remote.cia\` | HOME Menu app (title ID \`000400000FE3D500\`) |
           | \`3ds-remote.3dsx\` | Homebrew Launcher / \`3dslink\` |
-          | \`3ds\` | client for your computer (Python 3) |
+          | \`3ds-windows-x64.exe\` | client, Windows |
+          | \`3ds-macos-arm64\` | client, macOS (Apple silicon) |
+          | \`3ds-linux-x64\` | client, Linux |
           EOF
           gh release create "$tag" \
             --repo "$GITHUB_REPOSITORY" \
             --title "3ds-remote ${tag}" \
             --notes-file notes.md \
             --generate-notes \
-            3ds-remote.cia 3ds-remote.3dsx 3ds-remote-qr.png 3ds
+            3ds-remote.cia 3ds-remote.3dsx 3ds-remote-qr.png \
+            3ds-windows-x64.exe 3ds-macos-arm64 3ds-linux-x64

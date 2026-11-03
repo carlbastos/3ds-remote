@@ -25,7 +25,19 @@ Luma3DS を導入した New 3DS を、パソコンからネットワーク経由
 | Rosalina の **InputRedirection** | 3DS（バックグラウンド） | ボタン、タッチ、スライドパッドの入力を UDP **4950** で受け取ります（ゲーム中も可） |
 | **NTR-HR**（リモートプレイ） | 3DS（バックグラウンド） | 画面を配信し、クライアントが 1 フレームをスクリーンショットとして取得します（TCP **8000** + UDP **8001**） |
 
-クライアント `3ds`（Python 3、標準ライブラリのみ）が 3 つすべてと通信します。`screenshot` は画像の回転に macOS の `sips` を使います。それ以外は Python 3 が動く環境ならどこでも動きます。
+クライアント `3ds` は Windows、macOS、Linux で動作し、3 つすべてと通信します。
+
+## クライアントのインストール
+
+Python 3.9 以降があれば、どの OS でも：
+
+```sh
+pipx install "git+https://github.com/carlbastos/3ds-remote#subdirectory=client"
+```
+
+Python がない場合は、[最新リリース](https://github.com/carlbastos/3ds-remote/releases/latest)から自分の OS 用の実行ファイル（`3ds-windows-x64.exe`、`3ds-macos-arm64`、`3ds-linux-x64`）をダウンロードしてください。macOS と Linux では先に `chmod +x` を実行します。署名がないため、macOS では *システム設定 → プライバシーとセキュリティ* で許可を求められることがあります。
+
+`3ds config` で設定ファイルの場所を確認できます（Windows は `%APPDATA%\3ds-remote`、macOS と Linux は `~/.config/3ds-remote`）。`screenshot` は UDP ポート **8001** で映像を受け取るため、初回はファイアウォールが許可を求めることがあります。
 
 ## 使い方
 
@@ -49,7 +61,7 @@ Luma3DS を導入した New 3DS を、パソコンからネットワーク経由
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png
+3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:ポート]` と `THREEDS_TOKEN=<パスワード>` は設定ファイルより優先されます。`3ds logout` で保存したパスワードを削除します。

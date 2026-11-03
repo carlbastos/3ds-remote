@@ -40,7 +40,10 @@ T["es"] = dict(
     r1=("3DS, como app (CIA o `.3dsx`)", "Servidor HTTP/JSON en el puerto **8080**: estado, títulos, instalar/eliminar CIA, abrir títulos, archivos de la SD, reinicio/apagado"),
     r2=("**InputRedirection** de Rosalina", "3DS, en segundo plano", "Recibe botones, pantalla táctil y stick por UDP **4950**, también dentro de los juegos"),
     r3=("**NTR-HR** (remote play)", "3DS, en segundo plano", "Transmite las pantallas; el cliente toma un fotograma como captura (TCP **8000** + UDP **8001**)"),
-    client="El cliente `3ds` (Python 3, solo biblioteca estándar) habla con las tres. `screenshot` usa `sips` de macOS para girar la imagen; el resto funciona en cualquier sistema con Python 3.",
+    client="El cliente `3ds` funciona en Windows, macOS y Linux y habla con las tres.",
+    h_client="Instalar el cliente", inst="Con Python 3.9 o superior, en cualquier sistema:",
+    inst2="Sin Python, descarga el ejecutable de tu sistema en la [última versión]({latest}): `3ds-windows-x64.exe`, `3ds-macos-arm64` o `3ds-linux-x64`. En macOS y Linux, dale permiso de ejecución con `chmod +x`; macOS puede pedir que lo autorices en *Ajustes del Sistema → Privacidad y seguridad*, porque no está firmado.",
+    inst3="`3ds config` muestra dónde se guarda la configuración (`%APPDATA%\\3ds-remote` en Windows, `~/.config/3ds-remote` en macOS y Linux). `screenshot` recibe la imagen por el puerto UDP **8001**, así que la primera vez el cortafuegos puede pedir permiso.",
     h_usage="Uso", pair="La primera vez, empareja tu ordenador con la consola. Pulsa **Y** en 3DS Remote para ver la contraseña:",
     c_login="pide la contraseña y la guarda en ~/.config/3ds-remote/config.json (600)", c_ping="sin contraseña: versión y si la contraseña está activada",
     c_status="batería, Wi-Fi, SD, modelo, firmware, Luma", c_titles="títulos instalados con nombre",
@@ -78,7 +81,10 @@ T["ru"] = dict(
     r1=("3DS, как приложение (CIA или `.3dsx`)", "HTTP/JSON-сервер на порту **8080**: состояние, игры, установка и удаление CIA, запуск игр, файлы на SD-карте, перезагрузка и выключение"),
     r2=("**InputRedirection** из Rosalina", "3DS, в фоне", "Принимает кнопки, касания и стик по UDP **4950**, в том числе внутри игр"),
     r3=("**NTR-HR** (remote play)", "3DS, в фоне", "Транслирует экраны; клиент берёт кадр как скриншот (TCP **8000** + UDP **8001**)"),
-    client="Клиент `3ds` (Python 3, только стандартная библиотека) работает со всеми тремя. `screenshot` поворачивает картинку через `sips` из macOS; остальное работает везде, где есть Python 3.",
+    client="Клиент `3ds` работает в Windows, macOS и Linux и обращается ко всем трём.",
+    h_client="Установка клиента", inst="С Python 3.9 или новее, в любой ОС:",
+    inst2="Без Python скачайте исполняемый файл для своей системы из [последнего релиза]({latest}): `3ds-windows-x64.exe`, `3ds-macos-arm64` или `3ds-linux-x64`. В macOS и Linux сначала выполните `chmod +x`; macOS может попросить разрешить запуск в *Системные настройки → Конфиденциальность и безопасность*, так как файл не подписан.",
+    inst3="`3ds config` показывает, где хранятся настройки (`%APPDATA%\\3ds-remote` в Windows, `~/.config/3ds-remote` в macOS и Linux). `screenshot` принимает изображение на UDP-порт **8001**, поэтому при первом запуске брандмауэр может запросить разрешение.",
     h_usage="Использование", pair="Сначала свяжите компьютер с консолью. Нажмите **Y** в 3DS Remote, чтобы увидеть пароль:",
     c_login="спросит пароль и сохранит его в ~/.config/3ds-remote/config.json (600)", c_ping="без пароля: версия и включён ли пароль",
     c_status="батарея, Wi-Fi, SD-карта, модель, прошивка, Luma", c_titles="установленные игры с названиями",
@@ -116,7 +122,10 @@ T["ja"] = dict(
     r1=("3DS（CIA または `.3dsx` のアプリ）", "ポート **8080** の HTTP/JSON サーバー：状態、タイトル一覧、CIA のインストール・削除、タイトル起動、SD カードのファイル、再起動・電源オフ"),
     r2=("Rosalina の **InputRedirection**", "3DS（バックグラウンド）", "ボタン、タッチ、スライドパッドの入力を UDP **4950** で受け取ります（ゲーム中も可）"),
     r3=("**NTR-HR**（リモートプレイ）", "3DS（バックグラウンド）", "画面を配信し、クライアントが 1 フレームをスクリーンショットとして取得します（TCP **8000** + UDP **8001**）"),
-    client="クライアント `3ds`（Python 3、標準ライブラリのみ）が 3 つすべてと通信します。`screenshot` は画像の回転に macOS の `sips` を使います。それ以外は Python 3 が動く環境ならどこでも動きます。",
+    client="クライアント `3ds` は Windows、macOS、Linux で動作し、3 つすべてと通信します。",
+    h_client="クライアントのインストール", inst="Python 3.9 以降があれば、どの OS でも：",
+    inst2="Python がない場合は、[最新リリース]({latest})から自分の OS 用の実行ファイル（`3ds-windows-x64.exe`、`3ds-macos-arm64`、`3ds-linux-x64`）をダウンロードしてください。macOS と Linux では先に `chmod +x` を実行します。署名がないため、macOS では *システム設定 → プライバシーとセキュリティ* で許可を求められることがあります。",
+    inst3="`3ds config` で設定ファイルの場所を確認できます（Windows は `%APPDATA%\\3ds-remote`、macOS と Linux は `~/.config/3ds-remote`）。`screenshot` は UDP ポート **8001** で映像を受け取るため、初回はファイアウォールが許可を求めることがあります。",
     h_usage="使い方", pair="最初にパソコンと本体をペアリングします。3DS Remote で **Y** を押すとパスワードが表示されます：",
     c_login="パスワードを入力し ~/.config/3ds-remote/config.json (600) に保存", c_ping="パスワード不要：バージョンとパスワードの有無",
     c_status="バッテリー、Wi-Fi、SD、機種、ファームウェア、Luma", c_titles="インストール済みタイトルと名前",
@@ -154,7 +163,10 @@ T["fr"] = dict(
     r1=("3DS, en tant qu'app (CIA ou `.3dsx`)", "Serveur HTTP/JSON sur le port **8080** : état, titres, installation/suppression de CIA, lancement de titres, fichiers de la carte SD, redémarrage/extinction"),
     r2=("**InputRedirection** de Rosalina", "3DS, en arrière-plan", "Reçoit boutons, écran tactile et pad circulaire en UDP **4950**, y compris en jeu"),
     r3=("**NTR-HR** (remote play)", "3DS, en arrière-plan", "Diffuse les écrans ; le client récupère une image comme capture d'écran (TCP **8000** + UDP **8001**)"),
-    client="Le client `3ds` (Python 3, bibliothèque standard uniquement) dialogue avec les trois. `screenshot` utilise `sips` de macOS pour pivoter l'image ; tout le reste fonctionne partout où Python 3 est disponible.",
+    client="Le client `3ds` fonctionne sous Windows, macOS et Linux et dialogue avec les trois.",
+    h_client="Installer le client", inst="Avec Python 3.9 ou plus récent, sur n'importe quel système :",
+    inst2="Sans Python, téléchargez l'exécutable de votre système dans la [dernière version]({latest}) : `3ds-windows-x64.exe`, `3ds-macos-arm64` ou `3ds-linux-x64`. Sous macOS et Linux, faites d'abord `chmod +x` ; macOS peut demander de l'autoriser dans *Réglages Système → Confidentialité et sécurité*, car il n'est pas signé.",
+    inst3="`3ds config` indique où sont enregistrés les réglages (`%APPDATA%\\3ds-remote` sous Windows, `~/.config/3ds-remote` sous macOS et Linux). `screenshot` reçoit l'image sur le port UDP **8001** : la première fois, le pare-feu peut demander une autorisation.",
     h_usage="Utilisation", pair="La première fois, associez votre ordinateur à la console. Appuyez sur **Y** dans 3DS Remote pour afficher le mot de passe :",
     c_login="demande le mot de passe et l'enregistre dans ~/.config/3ds-remote/config.json (600)", c_ping="sans mot de passe : version et état du mot de passe",
     c_status="batterie, Wi-Fi, carte SD, modèle, firmware, Luma", c_titles="titres installés avec leur nom",
@@ -192,7 +204,10 @@ T["de"] = dict(
     r1=("3DS, als App (CIA oder `.3dsx`)", "HTTP/JSON-Server auf Port **8080**: Status, Titel, CIAs installieren/entfernen, Titel starten, Dateien auf der SD-Karte, Neustart/Ausschalten"),
     r2=("**InputRedirection** von Rosalina", "3DS, im Hintergrund", "Empfängt Tasten, Touch und Schiebepad über UDP **4950**, auch in Spielen"),
     r3=("**NTR-HR** (Remote Play)", "3DS, im Hintergrund", "Überträgt die Bildschirme; der Client holt sich ein Bild als Screenshot (TCP **8000** + UDP **8001**)"),
-    client="Der Client `3ds` (Python 3, nur Standardbibliothek) spricht mit allen drei. `screenshot` dreht das Bild mit `sips` von macOS; alles andere läuft überall, wo Python 3 läuft.",
+    client="Der Client `3ds` läuft unter Windows, macOS und Linux und spricht mit allen drei.",
+    h_client="Client installieren", inst="Mit Python 3.9 oder neuer, auf jedem Betriebssystem:",
+    inst2="Ohne Python lädst du die ausführbare Datei für dein System aus dem [neuesten Release]({latest}): `3ds-windows-x64.exe`, `3ds-macos-arm64` oder `3ds-linux-x64`. Unter macOS und Linux zuerst `chmod +x` ausführen; macOS fragt eventuell unter *Systemeinstellungen → Datenschutz & Sicherheit* nach einer Freigabe, da die Datei nicht signiert ist.",
+    inst3="`3ds config` zeigt, wo die Einstellungen liegen (`%APPDATA%\\3ds-remote` unter Windows, `~/.config/3ds-remote` unter macOS und Linux). `screenshot` empfängt das Bild auf UDP-Port **8001**, daher fragt die Firewall beim ersten Mal eventuell nach.",
     h_usage="Benutzung", pair="Verbinde beim ersten Mal deinen Computer mit der Konsole. Drücke in 3DS Remote **Y**, um das Passwort anzuzeigen:",
     c_login="fragt nach dem Passwort und speichert es in ~/.config/3ds-remote/config.json (600)", c_ping="ohne Passwort: Version und ob das Passwort aktiv ist",
     c_status="Akku, WLAN, SD-Karte, Modell, Firmware, Luma", c_titles="installierte Titel mit Namen",
@@ -230,7 +245,10 @@ T["it"] = dict(
     r1=("3DS, come app (CIA o `.3dsx`)", "Server HTTP/JSON sulla porta **8080**: stato, titoli, installazione/rimozione di CIA, avvio dei titoli, file della scheda SD, riavvio/spegnimento"),
     r2=("**InputRedirection** di Rosalina", "3DS, in background", "Riceve pulsanti, touch e Circle Pad via UDP **4950**, anche dentro i giochi"),
     r3=("**NTR-HR** (remote play)", "3DS, in background", "Trasmette gli schermi; il client prende un fotogramma come screenshot (TCP **8000** + UDP **8001**)"),
-    client="Il client `3ds` (Python 3, solo libreria standard) comunica con tutte e tre. `screenshot` usa `sips` di macOS per ruotare l'immagine; il resto funziona ovunque ci sia Python 3.",
+    client="Il client `3ds` funziona su Windows, macOS e Linux e comunica con tutte e tre.",
+    h_client="Installare il client", inst="Con Python 3.9 o successivo, su qualsiasi sistema:",
+    inst2="Senza Python, scarica l'eseguibile per il tuo sistema dall'[ultima release]({latest}): `3ds-windows-x64.exe`, `3ds-macos-arm64` o `3ds-linux-x64`. Su macOS e Linux esegui prima `chmod +x`; macOS potrebbe chiedere di autorizzarlo in *Impostazioni di Sistema → Privacy e sicurezza*, perché non è firmato.",
+    inst3="`3ds config` mostra dove sono salvate le impostazioni (`%APPDATA%\\3ds-remote` su Windows, `~/.config/3ds-remote` su macOS e Linux). `screenshot` riceve l'immagine sulla porta UDP **8001**, quindi la prima volta il firewall potrebbe chiedere il permesso.",
     h_usage="Uso", pair="La prima volta, abbina il computer alla console. Premi **Y** in 3DS Remote per vedere la password:",
     c_login="chiede la password e la salva in ~/.config/3ds-remote/config.json (600)", c_ping="senza password: versione e se la password è attiva",
     c_status="batteria, Wi-Fi, scheda SD, modello, firmware, Luma", c_titles="titoli installati con il nome",
@@ -268,7 +286,10 @@ T["nl"] = dict(
     r1=("3DS, als app (CIA of `.3dsx`)", "HTTP/JSON-server op poort **8080**: status, titels, CIA's installeren/verwijderen, titels starten, bestanden op de SD-kaart, herstarten/uitschakelen"),
     r2=("**InputRedirection** van Rosalina", "3DS, op de achtergrond", "Ontvangt knoppen, aanraakscherm en Circle Pad via UDP **4950**, ook in games"),
     r3=("**NTR-HR** (remote play)", "3DS, op de achtergrond", "Streamt de schermen; de client pakt één beeld als screenshot (TCP **8000** + UDP **8001**)"),
-    client="De client `3ds` (Python 3, alleen de standaardbibliotheek) praat met alle drie. `screenshot` draait het beeld met `sips` van macOS; de rest werkt overal waar Python 3 draait.",
+    client="De client `3ds` werkt op Windows, macOS en Linux en praat met alle drie.",
+    h_client="De client installeren", inst="Met Python 3.9 of nieuwer, op elk besturingssysteem:",
+    inst2="Zonder Python download je het uitvoerbare bestand voor jouw systeem uit de [nieuwste release]({latest}): `3ds-windows-x64.exe`, `3ds-macos-arm64` of `3ds-linux-x64`. Op macOS en Linux eerst `chmod +x`; macOS vraagt mogelijk om toestemming in *Systeeminstellingen → Privacy en beveiliging*, omdat het bestand niet ondertekend is.",
+    inst3="`3ds config` toont waar de instellingen staan (`%APPDATA%\\3ds-remote` op Windows, `~/.config/3ds-remote` op macOS en Linux). `screenshot` ontvangt het beeld op UDP-poort **8001**, dus de eerste keer kan de firewall om toestemming vragen.",
     h_usage="Gebruik", pair="Koppel de eerste keer je computer aan de console. Druk in 3DS Remote op **Y** om het wachtwoord te zien:",
     c_login="vraagt het wachtwoord en bewaart het in ~/.config/3ds-remote/config.json (600)", c_ping="zonder wachtwoord: versie en of het wachtwoord aan staat",
     c_status="batterij, wifi, SD-kaart, model, firmware, Luma", c_titles="geïnstalleerde titels met naam",
@@ -306,7 +327,10 @@ T["zh-CN"] = dict(
     r1=("3DS，作为应用（CIA 或 `.3dsx`）", "端口 **8080** 上的 HTTP/JSON 服务器：状态、游戏列表、安装/删除 CIA、启动游戏、SD 卡文件、重启/关机"),
     r2=("Rosalina 的 **InputRedirection**", "3DS，后台", "通过 UDP **4950** 接收按键、触摸和摇杆输入，游戏中也可以"),
     r3=("**NTR-HR**（远程游玩）", "3DS，后台", "串流画面；客户端截取一帧作为截图（TCP **8000** + UDP **8001**）"),
-    client="客户端 `3ds`（Python 3，仅用标准库）与这三部分通信。`screenshot` 使用 macOS 的 `sips` 旋转图像；其余功能在任何装有 Python 3 的系统上都能用。",
+    client="客户端 `3ds` 可在 Windows、macOS 和 Linux 上运行，并与这三部分通信。",
+    h_client="安装客户端", inst="在任何系统上，只要有 Python 3.9 或更高版本：",
+    inst2="没有 Python 的话，请从[最新发布版本]({latest})下载对应系统的可执行文件：`3ds-windows-x64.exe`、`3ds-macos-arm64` 或 `3ds-linux-x64`。在 macOS 和 Linux 上先运行 `chmod +x`；由于未签名，macOS 可能会要求在 *系统设置 → 隐私与安全性* 中允许运行。",
+    inst3="`3ds config` 会显示配置文件的位置（Windows 为 `%APPDATA%\\3ds-remote`，macOS 和 Linux 为 `~/.config/3ds-remote`）。`screenshot` 通过 UDP 端口 **8001** 接收画面，因此首次使用时防火墙可能会请求许可。",
     h_usage="使用方法", pair="第一次使用时，先将电脑与主机配对。在 3DS Remote 中按 **Y** 显示密码：",
     c_login="输入密码并保存到 ~/.config/3ds-remote/config.json (600)", c_ping="无需密码：版本以及是否启用密码",
     c_status="电池、Wi-Fi、SD 卡、型号、固件、Luma", c_titles="已安装的游戏及名称",
@@ -344,7 +368,10 @@ T["ko"] = dict(
     r1=("3DS, 앱으로 실행 (CIA 또는 `.3dsx`)", "포트 **8080**의 HTTP/JSON 서버: 상태, 타이틀 목록, CIA 설치/삭제, 타이틀 실행, SD 카드 파일, 재시작/전원 끄기"),
     r2=("Rosalina의 **InputRedirection**", "3DS, 백그라운드", "UDP **4950**으로 버튼, 터치, 슬라이드 패드 입력을 받습니다 (게임 중에도 가능)"),
     r3=("**NTR-HR** (리모트 플레이)", "3DS, 백그라운드", "화면을 스트리밍하고, 클라이언트가 한 프레임을 스크린샷으로 가져옵니다 (TCP **8000** + UDP **8001**)"),
-    client="클라이언트 `3ds`(Python 3, 표준 라이브러리만 사용)가 세 부분 모두와 통신합니다. `screenshot`은 macOS의 `sips`로 이미지를 회전하며, 나머지는 Python 3가 있는 곳이면 어디서나 동작합니다.",
+    client="클라이언트 `3ds`는 Windows, macOS, Linux에서 동작하며 세 부분 모두와 통신합니다.",
+    h_client="클라이언트 설치", inst="Python 3.9 이상이 있다면 어떤 OS에서든:",
+    inst2="Python이 없다면 [최신 릴리스]({latest})에서 운영체제에 맞는 실행 파일(`3ds-windows-x64.exe`, `3ds-macos-arm64`, `3ds-linux-x64`)을 내려받으세요. macOS와 Linux에서는 먼저 `chmod +x`를 실행하세요. 서명되지 않은 파일이라 macOS에서는 *시스템 설정 → 개인정보 보호 및 보안*에서 허용하라고 할 수 있습니다.",
+    inst3="`3ds config`로 설정 파일 위치를 확인할 수 있습니다 (Windows는 `%APPDATA%\\3ds-remote`, macOS와 Linux는 `~/.config/3ds-remote`). `screenshot`은 UDP 포트 **8001**로 화면을 받으므로 처음에는 방화벽이 허용을 요청할 수 있습니다.",
     h_usage="사용법", pair="처음에는 컴퓨터와 본체를 페어링합니다. 3DS Remote에서 **Y**를 누르면 비밀번호가 표시됩니다:",
     c_login="비밀번호를 입력받아 ~/.config/3ds-remote/config.json (600)에 저장", c_ping="비밀번호 없이: 버전과 비밀번호 사용 여부",
     c_status="배터리, Wi-Fi, SD 카드, 모델, 펌웨어, Luma", c_titles="설치된 타이틀과 이름",
@@ -382,7 +409,10 @@ T["zh-TW"] = dict(
     r1=("3DS，作為應用程式（CIA 或 `.3dsx`）", "連接埠 **8080** 上的 HTTP/JSON 伺服器：狀態、遊戲清單、安裝/刪除 CIA、啟動遊戲、SD 卡檔案、重新啟動/關機"),
     r2=("Rosalina 的 **InputRedirection**", "3DS，背景執行", "透過 UDP **4950** 接收按鍵、觸控和類比搖桿輸入，遊戲中也可以"),
     r3=("**NTR-HR**（遠端遊玩）", "3DS，背景執行", "串流畫面；用戶端擷取一格畫面作為螢幕截圖（TCP **8000** + UDP **8001**）"),
-    client="用戶端 `3ds`（Python 3，只用標準函式庫）與這三個部分通訊。`screenshot` 使用 macOS 的 `sips` 旋轉圖片；其餘功能在任何有 Python 3 的系統上都能執行。",
+    client="用戶端 `3ds` 可在 Windows、macOS 和 Linux 上執行，並與這三個部分通訊。",
+    h_client="安裝用戶端", inst="在任何系統上，只要有 Python 3.9 或更新版本：",
+    inst2="沒有 Python 的話，請從[最新發行版本]({latest})下載對應系統的執行檔：`3ds-windows-x64.exe`、`3ds-macos-arm64` 或 `3ds-linux-x64`。在 macOS 和 Linux 上請先執行 `chmod +x`；由於沒有簽署，macOS 可能會要求在 *系統設定 → 隱私權與安全性* 中允許執行。",
+    inst3="`3ds config` 會顯示設定檔的位置（Windows 為 `%APPDATA%\\3ds-remote`，macOS 和 Linux 為 `~/.config/3ds-remote`）。`screenshot` 透過 UDP 連接埠 **8001** 接收畫面，因此第一次使用時防火牆可能會要求允許。",
     h_usage="使用方式", pair="第一次使用時，先將電腦與主機配對。在 3DS Remote 中按 **Y** 顯示密碼：",
     c_login="輸入密碼並儲存到 ~/.config/3ds-remote/config.json (600)", c_ping="不需密碼：版本及是否啟用密碼",
     c_status="電池、Wi-Fi、SD 卡、型號、韌體、Luma", c_titles="已安裝的遊戲及名稱",
@@ -442,7 +472,7 @@ def render(code, t):
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png
+3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
 ```"""
     sec = "\n".join(f"- {s}" for s in t["sec"])
     boot = "\n".join(f"{i}. {s}" for i, s in enumerate(t["boot"], 1))
@@ -469,6 +499,18 @@ def render(code, t):
 {rows}
 
 {t['client']}
+
+## {t['h_client']}
+
+{t['inst']}
+
+```sh
+pipx install "git+{REPO}#subdirectory=client"
+```
+
+{t['inst2'].format(latest=REPO + '/releases/latest')}
+
+{t['inst3']}
 
 ## {t['h_usage']}
 

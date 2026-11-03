@@ -25,7 +25,19 @@ Es gibt drei Teile:
 | **InputRedirection** von Rosalina | 3DS, im Hintergrund | Empfängt Tasten, Touch und Schiebepad über UDP **4950**, auch in Spielen |
 | **NTR-HR** (Remote Play) | 3DS, im Hintergrund | Überträgt die Bildschirme; der Client holt sich ein Bild als Screenshot (TCP **8000** + UDP **8001**) |
 
-Der Client `3ds` (Python 3, nur Standardbibliothek) spricht mit allen drei. `screenshot` dreht das Bild mit `sips` von macOS; alles andere läuft überall, wo Python 3 läuft.
+Der Client `3ds` läuft unter Windows, macOS und Linux und spricht mit allen drei.
+
+## Client installieren
+
+Mit Python 3.9 oder neuer, auf jedem Betriebssystem:
+
+```sh
+pipx install "git+https://github.com/carlbastos/3ds-remote#subdirectory=client"
+```
+
+Ohne Python lädst du die ausführbare Datei für dein System aus dem [neuesten Release](https://github.com/carlbastos/3ds-remote/releases/latest): `3ds-windows-x64.exe`, `3ds-macos-arm64` oder `3ds-linux-x64`. Unter macOS und Linux zuerst `chmod +x` ausführen; macOS fragt eventuell unter *Systemeinstellungen → Datenschutz & Sicherheit* nach einer Freigabe, da die Datei nicht signiert ist.
+
+`3ds config` zeigt, wo die Einstellungen liegen (`%APPDATA%\3ds-remote` unter Windows, `~/.config/3ds-remote` unter macOS und Linux). `screenshot` empfängt das Bild auf UDP-Port **8001**, daher fragt die Firewall beim ersten Mal eventuell nach.
 
 ## Benutzung
 
@@ -49,7 +61,7 @@ Verbinde beim ersten Mal deinen Computer mit der Konsole. Drücke in 3DS Remote 
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png
+3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP
 ```
 
 `THREEDS=ip[:port]` und `THREEDS_TOKEN=<passwort>` haben Vorrang vor der Konfigurationsdatei. `3ds logout` löscht das gespeicherte Passwort.

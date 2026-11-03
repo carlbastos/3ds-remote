@@ -25,7 +25,24 @@ There are three parts:
 | Rosalina **InputRedirection** | 3DS, in the background | Receives buttons, touch and circle pad over UDP **4950**, including inside games |
 | **NTR-HR** (remote play) | 3DS, in the background | Streams the screens; the client grabs a frame as a screenshot (TCP **8000** + UDP **8001**) |
 
-The `3ds` client (Python 3, standard library only) talks to all three. `screenshot` uses macOS `sips` to rotate the image; everything else runs anywhere Python 3 does.
+The `3ds` client runs on Windows, macOS and Linux and talks to all three.
+
+## Install the client
+
+With Python 3.9 or newer, on any OS:
+
+```sh
+pipx install "git+https://github.com/carlbastos/3ds-remote#subdirectory=client"
+```
+
+(`pip install` works too; [pipx](https://pipx.pypa.io) keeps it in its own environment.) Without Python, download the executable for your system from the [latest release](https://github.com/carlbastos/3ds-remote/releases/latest): `3ds-windows-x64.exe`, `3ds-macos-arm64` or `3ds-linux-x64`. On macOS and Linux, `chmod +x` it first; macOS may also ask you to allow it under *System Settings → Privacy & Security*, since it is not signed.
+
+| OS | Settings file |
+|---|---|
+| Windows | `%APPDATA%\3ds-remote\config.json` |
+| macOS, Linux | `~/.config/3ds-remote/config.json` (or `$XDG_CONFIG_HOME`) |
+
+`3ds config` shows where it is. `screenshot` receives the stream on UDP port **8001**, so the first time your firewall (Windows Defender, for instance) may ask to allow it.
 
 ## Usage
 
@@ -49,7 +66,7 @@ The first time, pair your computer with the console. Press **Y** in 3DS Remote t
 
 3ds press A ; 3ds press L+R ; 3ds press UP UP A ; 3ds press HOME
 3ds touch 160 120 ; 3ds drag x1 y1 x2 y2 ; 3ds stick 1 0
-3ds screenshot [--screen bottom] file.png
+3ds screenshot [--screen bottom] file.png   # PNG, JPEG, WebP... by extension
 ```
 
 `THREEDS=ip[:port]` and `THREEDS_TOKEN=<password>` override the config file. `3ds logout` forgets the saved password.
@@ -101,14 +118,16 @@ Requirements: devkitPro with `3ds-dev` in `/opt/devkitpro`.
 
 On first use, `tools/fetch-tools.sh` downloads makerom 0.19.0 (Project_CTR) and builds bannertool 1.2.3 (carstene1ns fork) into `tools/`. None of that is committed.
 
+Client development: `pip install -e ./client`, then `python -m unittest discover -s client/tests`. From a checkout you can also run `./3ds` directly.
+
 The 3DS refuses a CIA with the same version as the installed one (`0xC8E083FC`), so every change to the app needs a new version in `VERSION`.
 
 ## CI and releases
 
 The [`build`](.github/workflows/build.yml) workflow compiles in the `devkitpro/devkitarm` container:
 
-- **push / PR:** builds the `.3dsx` and the CIA and keeps them, with the QR code, as run artifacts.
-- **tag `vX.Y.Z`:** checks that the tag matches `VERSION`, builds, and publishes a release with the CIA, 3dsx, client and QR code.
+- **push / PR:** builds the `.3dsx` and the CIA, tests the client on Linux, macOS and Windows (Python 3.9 and 3.13), builds the standalone client executables, and keeps everything as run artifacts.
+- **tag `vX.Y.Z`:** checks that the tag (and the client version) matches `VERSION`, builds, and publishes a release with the CIA, 3dsx, QR code and client executables.
 
 To cut a release:
 

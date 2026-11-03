@@ -1,0 +1,591 @@
+"""Command-line client for the 3ds-remote homebrew (Windows, macOS, Linux).
+
+Settings come from the config file written by `3ds login` (see config_path()),
+overridable with THREEDS=ip[:port] and THREEDS_TOKEN=<password>.
+"""
+import argparse
+import http.client
+import io
+import json
+import os
+import struct
+import sys
+import urllib.parse
+
+from . import __version__
+
+
+def config_path():
+    """%APPDATA%\\3ds-remote on Windows, $XDG_CONFIG_HOME (default ~/.config)/3ds-remote elsewhere."""
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    else:
+        base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    return os.path.join(base, "3ds-remote", "config.json")
+
+
+CONFIG = config_path()
+
+
+def load_config():
+    try:
+        with open(CONFIG) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_config(cfg):
+    os.makedirs(os.path.dirname(CONFIG), mode=0o700, exist_ok=True)
+    fd = os.open(CONFIG, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(cfg, f, indent=2)
+    try:
+        os.chmod(CONFIG, 0o600)   # no-op beyond read-only on Windows; the file lives in the user profile
+    except OSError:
+        pass
+
+
+def with_port(host):
+    return host if not host or ":" in host else host + ":8080"
+
+
+_cfg = load_config()
+HOST = with_port(os.environ.get("THREEDS") or _cfg.get("host") or "")
+TOKEN = os.environ.get("THREEDS_TOKEN") or _cfg.get("token") or ""
+REPO = os.environ.get("THREEDS_REPO", "carlbastos/3ds-remote")
+
+
+def host_ip():
+    if not HOST:
+        sys.exit("error: no 3DS address. Run `3ds login --host <3DS IP>` or set THREEDS=<3DS IP>.")
+    return HOST.split(":")[0]
+
+
+def request(method, path, params=None, body=None, length=None, timeout=30, token=None):
+    host_ip()
+    url = path + ("?" + urllib.parse.urlencode(params) if params else "")
+    conn = http.client.HTTPConnection(HOST, timeout=timeout, blocksize=128 * 1024)
+    headers = {}
+    tok = TOKEN if token is None else token
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    if length is not None:
+        headers["Content-Length"] = str(length)
+    conn.request(method, url, body=body, headers=headers)
+    resp = conn.getresponse()
+    return resp, conn
+
+
+def call(method, path, params=None, **kw):
+    resp, conn = request(method, path, params, **kw)
+    data = resp.read()
+    conn.close()
+    try:
+        out = json.loads(data)
+    except ValueError:
+        sys.exit(f"bad response ({resp.status}): {data[:200]!r}")
+    if resp.status != 200:
+        fail(resp.status, out)
+    return out
+
+
+def fail(status, out):
+    if status == 401:
+        sys.exit("error: the 3DS asked for the password. Run `3ds login` (the password is on the "
+                 "3DS Remote screen: Y shows it).")
+    if status == 429:
+        sys.exit("error: too many wrong passwords; the 3DS is refusing logins for 30 s.")
+    sys.exit(f"error: {out.get('error')} {out.get('result', '')}".rstrip())
+
+
+def human(n):
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.1f} {unit}" if unit != "B" else f"{n} B"
+        n /= 1024
+
+
+class Progress:
+    """File wrapper that prints upload progress while http.client reads it."""
+
+    def __init__(self, f, total, label):
+        self.f, self.total, self.done, self.label, self.last = f, total, 0, label, -1
+
+    def read(self, n=-1):
+        chunk = self.f.read(256 * 1024 if n is None or n < 0 else n)
+        self.done += len(chunk)
+        pct = self.done * 100 // max(self.total, 1)
+        if pct == self.last:
+            return chunk
+        self.last = pct
+        print(f"\r{self.label}: {pct:3d}% ({human(self.done)} / {human(self.total)})", end="", flush=True)
+        return chunk
+
+
+def upload(method, path, params, local, label):
+    size = os.path.getsize(local)
+    with open(local, "rb") as f:
+        resp, conn = request(method, path, params, body=Progress(f, size, label), length=size, timeout=600)
+        print()
+        data = resp.read()
+        conn.close()
+    out = json.loads(data)
+    if resp.status != 200:
+        fail(resp.status, out)
+
+
+ALREADY_INSTALLED = "0xC8E083FC"
+
+
+def cia_info(path):
+    """Returns (title_id_hex, version) read from the CIA's TMD, or None."""
+    align = lambda n: (n + 63) & ~63
+    try:
+        with open(path, "rb") as f:
+            hsize, _type, _ver, cert, tik, tmd = struct.unpack("<IHHIII", f.read(20))
+            f.seek(align(hsize) + align(cert) + align(tik))
+            t = f.read(0x200)
+        sig = struct.unpack(">I", t[:4])[0]
+        body = {0x10003: 0x240, 0x10004: 0x140, 0x10005: 0x80}.get(sig)
+        if body is None:
+            return None
+        tid = struct.unpack_from(">Q", t, body + 0x4C)[0]
+        ver = struct.unpack_from(">H", t, body + 0x9C)[0]
+        return f"{tid:016X}", ver
+    except (OSError, struct.error):
+        return None
+
+
+def vstr(v):
+    return f"{v >> 10}.{(v >> 4) & 0x3F}.{v & 0xF}"
+
+
+# ---- Rosalina InputRedirection (UDP 4950, works while a game is running) ----
+
+BUTTONS = {"A": 0, "B": 1, "SELECT": 2, "START": 3, "RIGHT": 4, "LEFT": 5, "UP": 6,
+           "DOWN": 7, "R": 8, "L": 9, "X": 10, "Y": 11}
+SPECIAL = {"HOME": 1, "POWER": 2, "POWER_LONG": 4}
+IDLE = dict(pad=0xFFF, touch=0x02000000, circle=0x7FF7FF, cpp=0x80800081, special=0)
+
+
+def ir_packet(pressed=(), touch=None, stick=None):
+    st = dict(IDLE)
+    for b in pressed:
+        if b in BUTTONS:
+            st["pad"] &= ~(1 << BUTTONS[b])
+        elif b in SPECIAL:
+            st["special"] |= SPECIAL[b]
+        else:
+            sys.exit(f"unknown button {b!r}; use {', '.join(list(BUTTONS) + list(SPECIAL))}")
+    if touch:
+        x, y = touch
+        st["touch"] = (1 << 24) | ((y * 0xFFF // 239) << 12) | (x * 0xFFF // 319)
+    if stick:  # -1.0 .. 1.0 each
+        x = int(0x800 + stick[0] * 0x5D0) & 0xFFF
+        y = int(0x800 + stick[1] * 0x5D0) & 0xFFF
+        st["circle"] = (y << 12) | x
+    return struct.pack("<5I", st["pad"], st["touch"], st["circle"], st["cpp"], st["special"])
+
+
+def ir_send(packet, hold_ms):
+    """Sends the state for hold_ms (repeating, like a real controller), then releases."""
+    import socket
+    import time
+    host = host_ip()
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    end = time.monotonic() + hold_ms / 1000
+    while time.monotonic() < end:
+        s.sendto(packet, (host, 4950))
+        time.sleep(0.016)
+    for _ in range(5):
+        s.sendto(ir_packet(), (host, 4950))
+        time.sleep(0.016)
+
+
+# ---- NTR / NTR-HR remote play, original "JPEG compat" protocol (TCP 8000 + UDP 8001) ----
+
+def ntr_start(quality=90, factor=1, top_priority=True, mbit=16):
+    """Opens the NTR control connection and asks for JPEG-compat remote play to UDP 8001.
+
+    Argument layout follows NTRViewer-HR (ntr_hb.c): arg3 is a guard magic, arg4 the UDP port.
+    The socket is returned so the caller can keep it alive with heartbeats.
+    """
+    import socket
+    args = [((1 if top_priority else 0) << 8) | factor, quality, mbit * 128 * 1024,
+            1404036572, 8001, 0, 0] + [0] * 9
+    s = socket.create_connection((host_ip(), 8000), timeout=5)
+    s.sendall(struct.pack("<4I16II", 0x12345678, 1, 0, 0, *([0] * 16), 0))      # heartbeat
+    s.sendall(struct.pack("<4I16II", 0x12345678, 2, 0, 901, *args, 0))         # remote play
+    s.setblocking(False)
+    return s
+
+
+def ntr_heartbeat(s, seq):
+    try:
+        while s.recv(65536):
+            pass
+    except (BlockingIOError, OSError):
+        pass
+    try:
+        s.sendall(struct.pack("<4I16II", 0x12345678, seq, 0, 0, *([0] * 16), 0))
+    except OSError:
+        pass
+
+
+def ntr_grab(screen="top", timeout=8.0):
+    """Returns one complete JPEG frame (raw, still rotated) of the requested screen."""
+    import socket
+    import time
+    want_top = screen == "top"
+    u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    u.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    u.bind(("0.0.0.0", 8001))
+    u.settimeout(0.5)
+    frames = {}
+    ctl = None
+    seq = 3
+    last_hb = 0
+    deadline = time.monotonic() + timeout
+    try:
+        while time.monotonic() < deadline:
+            now = time.monotonic()
+            if ctl and now - last_hb > 1:
+                ntr_heartbeat(ctl, seq)
+                seq += 1
+                last_hb = now
+            try:
+                data, _ = u.recvfrom(4096)
+            except socket.timeout:
+                if ctl is None:
+                    ctl = ntr_start()  # nothing arriving: ask NTR to stream to us
+                    last_hb = time.monotonic()
+                continue
+            if len(data) < 5:
+                continue
+            fid, flags, _fmt, seq = data[0], data[1], data[2], data[3]
+            if bool(flags & 1) != want_top:
+                continue
+            parts = frames.setdefault(fid, {})
+            parts[seq] = data[4:]
+            if flags & 0x10:  # last packet of this frame
+                if len(parts) == seq + 1:
+                    jpeg = b"".join(parts[i] for i in range(seq + 1))
+                    if jpeg[:2] == b"\xff\xd8":
+                        return jpeg
+                frames.pop(fid, None)
+    finally:
+        u.close()
+        if ctl:
+            ctl.close()
+    return None
+
+
+def ir_drag(x1, y1, x2, y2, grab_ms=1200, move_ms=1000, drop_ms=400):
+    """Touch-and-hold at (x1,y1), slide to (x2,y2), hold, release."""
+    import socket
+    import time
+    host = host_ip()
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def hold(x, y, ms):
+        end = time.monotonic() + ms / 1000
+        while time.monotonic() < end:
+            s.sendto(ir_packet(touch=(x, y)), (host, 4950))
+            time.sleep(0.016)
+
+    hold(x1, y1, grab_ms)
+    steps = max(1, move_ms // 16)
+    for i in range(1, steps + 1):
+        x = round(x1 + (x2 - x1) * i / steps)
+        y = round(y1 + (y2 - y1) * i / steps)
+        s.sendto(ir_packet(touch=(x, y)), (host, 4950))
+        time.sleep(0.016)
+    hold(x2, y2, drop_ms)
+    for _ in range(5):
+        s.sendto(ir_packet(), (host, 4950))
+        time.sleep(0.016)
+
+
+EXIF_ORIENTATION = {0: 1, 90: 6, 180: 3, 270: 8}   # degrees clockwise -> EXIF Orientation
+
+
+def jpeg_with_orientation(jpeg, rotate_cw):
+    """Adds an EXIF APP1 segment telling viewers to rotate the image by rotate_cw degrees."""
+    tiff = b"MM\x00\x2a" + struct.pack(">I", 8) + struct.pack(">H", 1) \
+        + struct.pack(">HHIHH", 0x0112, 3, 1, EXIF_ORIENTATION[rotate_cw], 0) + struct.pack(">I", 0)
+    payload = b"Exif\x00\x00" + tiff
+    return jpeg[:2] + b"\xff\xe1" + struct.pack(">H", len(payload) + 2) + payload + jpeg[2:]
+
+
+def save_screen(jpeg, out, rotate_cw):
+    """Writes the frame upright. Uses Pillow when available (any output format); otherwise keeps
+    the JPEG and records the rotation as EXIF orientation. Returns the path written."""
+    if rotate_cw not in EXIF_ORIENTATION:
+        sys.exit("--rotate must be 0, 90, 180 or 270")
+    try:
+        from PIL import Image
+    except ImportError:
+        Image = None
+    if Image is not None:
+        img = Image.open(io.BytesIO(jpeg))
+        img.rotate(-rotate_cw, expand=True).save(out)   # Pillow rotates counter-clockwise
+        return out
+    if not out.lower().endswith((".jpg", ".jpeg")):
+        out = os.path.splitext(out)[0] + ".jpg"
+        print("note: Pillow is not installed, saving JPEG with EXIF orientation instead", file=sys.stderr)
+    with open(out, "wb") as f:
+        f.write(jpeg_with_orientation(jpeg, rotate_cw))
+    return out
+
+
+def find_title(query, media):
+    """Accepts a title ID or part of a name/product code."""
+    titles = call("GET", "/titles", {"media": media})
+    q = query.lower()
+    exact = [t for t in titles if t["tid"].lower() == q.zfill(16)]
+    if exact:
+        return exact[0]
+    hits = [t for t in titles if t["kind"] in ("app", "demo")
+            and (q in t.get("name", "").lower() or q in t.get("product", "").lower())]
+    if not hits:
+        sys.exit(f"no title matches {query!r}")
+    if len(hits) > 1:
+        for t in hits:
+            print(f"  {t['tid']}  {t.get('name', '?')}")
+        sys.exit("more than one match; be more specific or use the title ID")
+    return hits[0]
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="3ds", description="Control a 3DS running 3ds-remote")
+    ap.add_argument("--version", action="version", version=f"3ds-remote client {__version__}")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("login", help="save the 3DS address and password (asked interactively)")
+    p.add_argument("--host", help="3DS address, e.g. 192.168.1.241")
+    sub.add_parser("logout", help="forget the saved password")
+    sub.add_parser("ping", help="check the server without a password")
+    sub.add_parser("status")
+    p = sub.add_parser("titles"); p.add_argument("--media", default="sd", choices=["sd", "nand", "card"])
+    p.add_argument("--all", action="store_true", help="include updates, DLC, system titles")
+    p.add_argument("--json", action="store_true")
+    p = sub.add_parser("install"); p.add_argument("cia", nargs="+"); p.add_argument("--media", default="sd")
+    p.add_argument("--force", action="store_true", help="send even if the same version looks installed")
+    p = sub.add_parser("update", help="install the latest 3ds-remote release from GitHub")
+    p.add_argument("--force", action="store_true")
+    p = sub.add_parser("delete"); p.add_argument("title"); p.add_argument("--media", default="sd")
+    p = sub.add_parser("launch"); p.add_argument("title"); p.add_argument("--media", default="sd")
+    p = sub.add_parser("ls"); p.add_argument("path", nargs="?", default="/")
+    p = sub.add_parser("get"); p.add_argument("remote"); p.add_argument("local", nargs="?")
+    p = sub.add_parser("put"); p.add_argument("local"); p.add_argument("remote")
+    p = sub.add_parser("rm"); p.add_argument("remote")
+    p = sub.add_parser("press", help="press buttons via Rosalina InputRedirection (works in games)")
+    p.add_argument("steps", nargs="+", help="e.g. A   START   L+R   UP UP DOWN   HOME")
+    p.add_argument("--hold", type=int, default=120, help="ms each step is held")
+    p.add_argument("--gap", type=int, default=150, help="ms between steps")
+    p = sub.add_parser("touch", help="tap the bottom screen at x y (320x240)")
+    p.add_argument("x", type=int); p.add_argument("y", type=int); p.add_argument("--hold", type=int, default=120)
+    p = sub.add_parser("drag", help="touch-hold, slide and release on the bottom screen")
+    for n in ("x1", "y1", "x2", "y2"):
+        p.add_argument(n, type=int)
+    p.add_argument("--grab", type=int, default=1200, help="ms to hold before moving")
+    p.add_argument("--move", type=int, default=1000, help="ms the slide takes")
+    p.add_argument("--drop", type=int, default=400, help="ms to hold at the destination")
+    p = sub.add_parser("stick", help="hold the circle pad, x y in -1..1")
+    p.add_argument("x", type=float); p.add_argument("y", type=float); p.add_argument("--hold", type=int, default=500)
+    p = sub.add_parser("screenshot", help="grab a frame through NTR-HR remote play")
+    p.add_argument("out", nargs="?", default="3ds-screen.png")
+    p.add_argument("--screen", choices=["top", "bottom"], default="top")
+    p.add_argument("--rotate", type=int, default=270, choices=[0, 90, 180, 270],
+                   help="degrees clockwise to fix the 3DS orientation")
+    for c in ("reboot", "shutdown", "exit"):
+        sub.add_parser(c)
+    sub.add_parser("config", help="show where the settings are stored")
+    a = ap.parse_args(argv)
+
+    if a.cmd == "login":
+        import getpass
+        global HOST
+        host = a.host or (HOST.split(":")[0] if HOST else "")
+        if not host:
+            sys.exit("error: give the 3DS address: 3ds login --host <3DS IP>")
+        HOST = with_port(host)
+        info = call("GET", "/ping")
+        if not info.get("auth"):
+            print("warning: this 3DS has the password turned off")
+        token = getpass.getpass(f"Password for 3DS Remote at {HOST}: ").strip()
+        resp, conn = request("GET", "/status", token=token)
+        data = resp.read()
+        conn.close()
+        if resp.status != 200:
+            fail(resp.status, json.loads(data))
+        cfg = load_config()
+        cfg.update(host=host.split(":")[0], token=token)
+        save_config(cfg)
+        print(f"ok: logged in to 3ds-remote {info.get('version')}; saved to {CONFIG}")
+
+    elif a.cmd == "logout":
+        cfg = load_config()
+        cfg.pop("token", None)
+        save_config(cfg)
+        print("password removed")
+
+    elif a.cmd == "ping":
+        info = call("GET", "/ping")
+        print(f"3ds-remote {info['version']} at {HOST}, password {'required' if info['auth'] else 'OFF'}")
+
+    elif a.cmd == "status":
+        s = call("GET", "/status")
+        b = s["battery"]
+        batt = f"{b['percent']}%" if "percent" in b else f"{b['level']}/5"
+        print(f"Server:   3ds-remote {s.get('server', '?')}, password {'required' if s.get('auth') else 'OFF'}")
+        print(f"Model:    {s.get('model', '?')}  (system {s.get('system_version', '?')}, Luma {s.get('luma', '?')})")
+        print(f"Battery:  {batt}{' (charging)' if b['charging'] else ''}")
+        print(f"Wi-Fi:    {s['wifi_strength']}/3  ip {s['ip']}")
+        if "sd" in s:
+            print(f"SD card:  {human(s['sd']['free'])} free of {human(s['sd']['total'])}")
+
+    elif a.cmd == "titles":
+        titles = call("GET", "/titles", {"media": a.media}, timeout=120)
+        if not a.all:
+            titles = [t for t in titles if t["kind"] in ("app", "demo")]
+        if a.json:
+            print(json.dumps(titles, indent=2, ensure_ascii=False))
+            return
+        titles.sort(key=lambda t: (t["kind"], t.get("name", "~")))
+        for t in titles:
+            print(f"{t['tid']}  {t.get('product', ''):<16} {human(t.get('size', 0)):>9}  "
+                  f"{t.get('name', '') or '(' + t['kind'] + ')'}")
+        print(f"{len(titles)} titles")
+
+    elif a.cmd == "install":
+        installed = {t["tid"]: t for t in call("GET", "/titles", {"media": a.media}, timeout=120)}
+        for cia in a.cia:
+            info = cia_info(cia)
+            if info and info[0] in installed and not a.force:
+                cur = installed[info[0]]
+                if cur.get("version", -1) >= info[1]:
+                    print(f"{os.path.basename(cia)}: already installed ({cur.get('name', info[0])} "
+                          f"v{vstr(cur['version'])}, CIA is v{vstr(info[1])}); skipping")
+                    continue
+            try:
+                upload("POST", "/install", {"media": a.media}, cia, os.path.basename(cia))
+            except SystemExit as e:
+                if ALREADY_INSTALLED in str(e):
+                    sys.exit(f"{os.path.basename(cia)}: the 3DS refused it, same or newer version already installed")
+                raise
+            print("installed")
+
+    elif a.cmd == "update":
+        import tempfile
+        import urllib.request
+        url = f"https://github.com/{REPO}/releases/latest/download/3ds-remote.cia"
+        with tempfile.TemporaryDirectory() as d:
+            cia = os.path.join(d, "3ds-remote.cia")
+            print(f"downloading {url}")
+            urllib.request.urlretrieve(url, cia)
+            info = cia_info(cia)
+            if not info:
+                sys.exit("downloaded file is not a valid CIA")
+            installed = {t["tid"]: t for t in call("GET", "/titles", timeout=120)}
+            cur = installed.get(info[0])
+            if cur and cur.get("version", -1) >= info[1] and not a.force:
+                print(f"already up to date (v{vstr(cur['version'])})")
+                return
+            upload("POST", "/install", {"media": "sd"}, cia, f"3ds-remote v{vstr(info[1])}")
+            print("installed; reopen 3DS Remote from the HOME Menu to use the new version")
+
+    elif a.cmd == "delete":
+        t = find_title(a.title, a.media)
+        call("POST", "/delete", {"tid": t["tid"], "media": a.media})
+        print(f"deleted {t['tid']} {t.get('name', '')}")
+
+    elif a.cmd == "launch":
+        t = find_title(a.title, a.media)
+        call("POST", "/launch", {"tid": t["tid"], "media": a.media})
+        print(f"launching {t.get('name', t['tid'])}")
+
+    elif a.cmd == "ls":
+        entries = call("GET", "/ls", {"path": a.path}, timeout=120)
+        entries.sort(key=lambda e: (not e["dir"], e["name"].lower()))
+        for e in entries:
+            print(f"{'<dir>':>10}  {e['name']}/" if e["dir"] else f"{human(e['size']):>10}  {e['name']}")
+
+    elif a.cmd == "get":
+        local = a.local or os.path.basename(a.remote)
+        resp, conn = request("GET", "/file", {"path": a.remote}, timeout=600)
+        if resp.status != 200:
+            fail(resp.status, json.loads(resp.read()))
+        total = int(resp.getheader("Content-Length", 0))
+        done = 0
+        with open(local, "wb") as f:
+            while chunk := resp.read(256 * 1024):
+                f.write(chunk)
+                done += len(chunk)
+                print(f"\r{local}: {done * 100 // max(total, 1):3d}%", end="", flush=True)  # one line, overwritten
+        conn.close()
+        print()
+
+    elif a.cmd == "put":
+        upload("PUT", "/file", {"path": a.remote}, a.local, os.path.basename(a.local))
+
+    elif a.cmd == "press":
+        import time
+        for i, step in enumerate(a.steps):
+            if i:
+                time.sleep(a.gap / 1000)
+            ir_send(ir_packet([b.upper() for b in step.split("+")]), a.hold)
+
+    elif a.cmd == "touch":
+        if not (0 <= a.x < 320 and 0 <= a.y < 240):
+            sys.exit("touch coordinates are 0-319 x 0-239")
+        ir_send(ir_packet(touch=(a.x, a.y)), a.hold)
+
+    elif a.cmd == "drag":
+        for v, lim in ((a.x1, 320), (a.x2, 320), (a.y1, 240), (a.y2, 240)):
+            if not 0 <= v < lim:
+                sys.exit("touch coordinates are 0-319 x 0-239")
+        ir_drag(a.x1, a.y1, a.x2, a.y2, a.grab, a.move, a.drop)
+
+    elif a.cmd == "stick":
+        ir_send(ir_packet(stick=(max(-1, min(1, a.x)), max(-1, min(1, a.y)))), a.hold)
+
+    elif a.cmd == "screenshot":
+        jpeg = ntr_grab(a.screen)
+        if not jpeg:
+            sys.exit("no frame received: is NTR-HR running (BootNTR Selector) and is UDP 8001 allowed "
+                     "through this computer's firewall?")
+        print(save_screen(jpeg, a.out, a.rotate))
+
+    elif a.cmd == "config":
+        cfg = load_config()
+        print(f"config file: {CONFIG}{'' if os.path.exists(CONFIG) else ' (not created yet)'}")
+        print(f"3DS address: {HOST or '(not set)'}")
+        print(f"password:    {'saved' if cfg.get('token') else 'not saved'}"
+              f"{' (THREEDS_TOKEN overrides it)' if os.environ.get('THREEDS_TOKEN') else ''}")
+
+    elif a.cmd == "rm":
+        call("DELETE", "/file", {"path": a.remote})
+
+    else:
+        call("POST", "/" + a.cmd)
+        print("ok")
+
+
+def run(argv=None):
+    # Windows consoles may not be able to print title names in every script; never crash on that.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    try:
+        main(argv)
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except (ConnectionRefusedError, TimeoutError, OSError) as e:
+        sys.exit(f"cannot reach 3DS ({HOST.split(':')[0] or '?'}): {e}")
+
+
+if __name__ == "__main__":
+    run()

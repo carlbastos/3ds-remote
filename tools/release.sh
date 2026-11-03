@@ -12,7 +12,8 @@ git rev-parse -q --verify "refs/tags/v$new" >/dev/null && { echo "tag v$new alre
 old="$(cat VERSION)"
 if [ "$old" != "$new" ]; then
   echo "$new" > VERSION
-  git commit -q -m "Release v$new" VERSION
+  sed -i.bak "s/^__version__ = .*/__version__ = \"$new\"/" client/threeds_remote/__init__.py && rm client/threeds_remote/__init__.py.bak
+  git commit -q -m "Release v$new" VERSION client/threeds_remote/__init__.py
 fi
 git tag -a "v$new" -m "3ds-remote v$new"
 git push -q origin main "v$new"

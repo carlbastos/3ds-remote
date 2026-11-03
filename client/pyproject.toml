@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "threeds-remote"
+dynamic = ["version"]
+description = "Command-line client for 3ds-remote: control a New 3DS running Luma3DS over the network"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = ["Pillow>=9"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/carlbastos/3ds-remote"
+
+[project.scripts]
+3ds = "threeds_remote.cli:run"
+
+[tool.setuptools]
+packages = ["threeds_remote"]
+
+[tool.setuptools.dynamic]
+version = { attr = "threeds_remote.__version__" }
