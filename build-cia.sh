@@ -13,8 +13,6 @@ tools/fetch-tools.sh
 
 VERSION=$(cat VERSION)
 MAJOR=$(echo "$VERSION" | cut -d. -f1)
-MINOR=$(echo "$VERSION" | cut -d. -f2)
-MICRO=$(echo "$VERSION" | cut -d. -f3)
 
 if [ "$STAGE" != package ]; then
   make clean >/dev/null
@@ -24,7 +22,9 @@ fi
 mkdir -p build
 tools/bannertool makebanner -i meta/banner.png -a meta/audio.wav -o build/banner.bnr
 tools/bannertool makesmdh -s "3DS Remote" -l "HTTP control server" -p "ulfr" -i meta/icon.png -o build/icon.icn
-tools/makerom -f cia -o 3ds-remote.cia -elf 3ds-remote.elf -rsf meta/app.rsf \
-  -icon build/icon.icn -banner build/banner.bnr -target t -exefslogo \
-  -major "$MAJOR" -minor "$MINOR" -micro "$MICRO"
+# makerom only honours the major version (RSF RemasterVersion); the full version is patched in after
+sed "s/RemasterVersion: 0/RemasterVersion: $MAJOR/" meta/app.rsf > build/app.rsf
+tools/makerom -f cia -o 3ds-remote.cia -elf 3ds-remote.elf -rsf build/app.rsf \
+  -icon build/icon.icn -banner build/banner.bnr -target t -exefslogo
+python3 tools/set-cia-version.py 3ds-remote.cia "$VERSION"
 echo "built 3ds-remote.cia v$VERSION"
