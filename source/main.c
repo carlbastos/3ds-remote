@@ -23,13 +23,17 @@ static void run_pending(void) {
     switch (g.pending) {
         case ACT_REBOOT:
             log_add("%s", tr(S_LOG_REBOOTING));
-            if (have_ptmsysm) PTMSYSM_RebootAsync(0);
-            else APT_HardwareResetAsync();
+            // Same path as Rosalina and the HOME Menu: NS closes everything in order. PTMSYSM_RebootAsync(0)
+            // gives PM a zero timeout, so it force-kills every process and then waits forever; with NTR-HR
+            // loaded that hung the console.
+            APT_HardwareResetAsync();
             g.pending = ACT_NONE;
             break;
         case ACT_SHUTDOWN:
             log_add("%s", tr(S_LOG_SHUTTING_DOWN));
-            if (have_ptmsysm) PTMSYSM_ShutdownAsync(0);
+            // Notification 0x203 is what the POWER button sends: NS runs the normal shutdown (as Rosalina does).
+            if (R_FAILED(srvPublishToSubscriber(0x203, 0)) && have_ptmsysm)
+                PTMSYSM_ShutdownAsync(3000000000ULL);
             g.pending = ACT_NONE;
             break;
         case ACT_LAUNCH: {
