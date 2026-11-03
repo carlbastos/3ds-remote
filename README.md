@@ -101,5 +101,6 @@ Erros vêm como `{"error": "...", "result": "0x..."}`.
 
 - **NTR-HR**: o comando de remote play (901) precisa dos argumentos no formato do NTRViewer-HR (`arg3 = 1404036572`, `arg4 = porta UDP`). O formato antigo do NTR derruba a rede do NTR até reiniciar o console.
 - **Mover ícone no HOME Menu** pelo `drag`: segurar ~2 s levanta o ícone; parar ~4 s sobre uma pasta abre a pasta; soltar só funciona em espaço **vazio**.
+- **Versão do CIA**: o makerom 0.19.0 ignora `-ver`/`-major`/`-minor`/`-micro` em builds a partir do ELF e só usa o `RemasterVersion` do RSF como major. O `build-cia.sh` passa o major pelo RSF e o `tools/set-cia-version.py` grava o X.Y.Z completo no TMD e no ticket (confira com `ctrtool -p --intype=cia`). A release v0.1.0 saiu com versão 0.0.0 por isso; use a v0.1.1 ou mais nova.
 - `meta/app.rsf` vem do template do buildtools (Steveice10). Title ID `000400000FE3D500`, product code `CTR-P-RMTE`.
 - `tools/make_art.py` gera `meta/icon.png`, `meta/banner.png` e `meta/audio.wav`.
