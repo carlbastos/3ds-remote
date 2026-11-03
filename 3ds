@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Mac-side client for the 3ds-remote homebrew.
 
-Host defaults to 192.168.1.241:8080; override with THREEDS=ip[:port].
+Settings come from ~/.config/3ds-remote/config.json (written by `3ds login`, mode 600),
+overridable with THREEDS=ip[:port] and THREEDS_TOKEN=<senha>.
 """
 import argparse
 import http.client
@@ -10,16 +11,40 @@ import os
 import sys
 import urllib.parse
 
-HOST = os.environ.get("THREEDS", "192.168.1.241")
+CONFIG = os.path.expanduser("~/.config/3ds-remote/config.json")
+
+
+def load_config():
+    try:
+        with open(CONFIG) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_config(cfg):
+    os.makedirs(os.path.dirname(CONFIG), mode=0o700, exist_ok=True)
+    fd = os.open(CONFIG, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(cfg, f, indent=2)
+    os.chmod(CONFIG, 0o600)
+
+
+_cfg = load_config()
+HOST = os.environ.get("THREEDS") or _cfg.get("host") or "192.168.1.241"
+TOKEN = os.environ.get("THREEDS_TOKEN") or _cfg.get("token") or ""
 REPO = os.environ.get("THREEDS_REPO", "carlbastos/3ds-remote")
 if ":" not in HOST:
     HOST += ":8080"
 
 
-def request(method, path, params=None, body=None, length=None, timeout=30):
+def request(method, path, params=None, body=None, length=None, timeout=30, token=None):
     url = path + ("?" + urllib.parse.urlencode(params) if params else "")
     conn = http.client.HTTPConnection(HOST, timeout=timeout, blocksize=128 * 1024)
     headers = {}
+    tok = TOKEN if token is None else token
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
     if length is not None:
         headers["Content-Length"] = str(length)
     conn.request(method, url, body=body, headers=headers)
@@ -36,8 +61,17 @@ def call(method, path, params=None, **kw):
     except ValueError:
         sys.exit(f"bad response ({resp.status}): {data[:200]!r}")
     if resp.status != 200:
-        sys.exit(f"error: {out.get('error')} {out.get('result', '')}".rstrip())
+        fail(resp.status, out)
     return out
+
+
+def fail(status, out):
+    if status == 401:
+        sys.exit("error: the 3DS asked for the password. Run `3ds login` (the password is on the "
+                 "3DS Remote screen: Y shows it).")
+    if status == 429:
+        sys.exit("error: too many wrong passwords; the 3DS is refusing logins for 30 s.")
+    sys.exit(f"error: {out.get('error')} {out.get('result', '')}".rstrip())
 
 
 def human(n):
@@ -73,7 +107,7 @@ def upload(method, path, params, local, label):
         conn.close()
     out = json.loads(data)
     if resp.status != 200:
-        sys.exit(f"error: {out.get('error')} {out.get('result', '')}".rstrip())
+        fail(resp.status, out)
 
 
 ALREADY_INSTALLED = "0xC8E083FC"
@@ -274,6 +308,10 @@ def find_title(query, media):
 def main():
     ap = argparse.ArgumentParser(description="Control a 3DS running 3ds-remote")
     sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("login", help="save the 3DS address and password (asked interactively)")
+    p.add_argument("--host", help="3DS address, e.g. 192.168.1.241")
+    sub.add_parser("logout", help="forget the saved password")
+    sub.add_parser("ping", help="check the server without a password")
     sub.add_parser("status")
     p = sub.add_parser("titles"); p.add_argument("--media", default="sd", choices=["sd", "nand", "card"])
     p.add_argument("--all", action="store_true", help="include updates, DLC, system titles")
@@ -310,11 +348,40 @@ def main():
         sub.add_parser(c)
     a = ap.parse_args()
 
-    if a.cmd == "status":
+    if a.cmd == "login":
+        import getpass
+        global HOST
+        host = a.host or HOST.split(":")[0]
+        HOST = host if ":" in host else host + ":8080"
+        info = call("GET", "/ping")
+        if not info.get("auth"):
+            print("warning: this 3DS has the password turned off")
+        token = getpass.getpass(f"Password for 3DS Remote at {HOST}: ").strip()
+        resp, conn = request("GET", "/status", token=token)
+        data = resp.read()
+        conn.close()
+        if resp.status != 200:
+            fail(resp.status, json.loads(data))
+        cfg = load_config()
+        cfg.update(host=host.split(":")[0], token=token)
+        save_config(cfg)
+        print(f"ok: logged in to 3ds-remote {info.get('version')}; saved to {CONFIG}")
+
+    elif a.cmd == "logout":
+        cfg = load_config()
+        cfg.pop("token", None)
+        save_config(cfg)
+        print("password removed")
+
+    elif a.cmd == "ping":
+        info = call("GET", "/ping")
+        print(f"3ds-remote {info['version']} at {HOST}, password {'required' if info['auth'] else 'OFF'}")
+
+    elif a.cmd == "status":
         s = call("GET", "/status")
         b = s["battery"]
         batt = f"{b['percent']}%" if "percent" in b else f"{b['level']}/5"
-        print(f"Server:   3ds-remote {s.get('server', '?')}")
+        print(f"Server:   3ds-remote {s.get('server', '?')}, password {'required' if s.get('auth') else 'OFF'}")
         print(f"Model:    {s.get('model', '?')}  (system {s.get('system_version', '?')}, Luma {s.get('luma', '?')})")
         print(f"Battery:  {batt}{' (charging)' if b['charging'] else ''}")
         print(f"Wi-Fi:    {s['wifi_strength']}/3  ip {s['ip']}")
@@ -391,7 +458,7 @@ def main():
         local = a.local or os.path.basename(a.remote)
         resp, conn = request("GET", "/file", {"path": a.remote}, timeout=600)
         if resp.status != 200:
-            sys.exit(f"error: {json.loads(resp.read()).get('error')}")
+            fail(resp.status, json.loads(resp.read()))
         total = int(resp.getheader("Content-Length", 0))
         done = 0
         with open(local, "wb") as f:

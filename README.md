@@ -27,8 +27,14 @@ O cliente `3ds` (Python 3, só biblioteca padrão) fala com as três.
 
 ## Uso
 
+Na primeira vez, pareie o Mac com o console. A senha aparece no 3DS Remote ao apertar **Y**:
+
 ```sh
-export THREEDS=192.168.1.241      # padrão; aceita ip:porta
+3ds login --host 192.168.1.241    # pede a senha e salva em ~/.config/3ds-remote/config.json (600)
+```
+
+```sh
+3ds ping                          # sem senha: versão e se a senha está ligada
 
 3ds status                        # bateria, Wi-Fi, SD, modelo, firmware, Luma
 3ds titles [--all] [--json]       # títulos instalados com nome
@@ -44,7 +50,27 @@ export THREEDS=192.168.1.241      # padrão; aceita ip:porta
 3ds screenshot [--screen bottom] arquivo.png
 ```
 
+`THREEDS=ip[:porta]` e `THREEDS_TOKEN=<senha>` sobrescrevem o arquivo de configuração. `3ds logout` apaga a senha salva.
+
 Os comandos `press`/`touch`/`drag`/`stick` precisam do InputRedirection ligado; `screenshot` precisa do NTR-HR carregado. Nenhum dos dois depende do servidor estar aberto.
+
+## No console
+
+| Tela | Conteúdo |
+|---|---|
+| Superior | Endereço, estado (ONLINE / PAUSADO / SEM REDE), senha (oculta), bateria, Wi-Fi, progresso de transferências e os últimos pedidos |
+| Inferior (toque) | Mostrar senha (**Y**), nova senha aleatória (**X**), definir senha pelo teclado, ligar/desligar a exigência de senha, pausar (**SELECT**), sair (**START**) |
+
+## Segurança
+
+- **Senha obrigatória** em todas as rotas, menos `/ping`, via `Authorization: Bearer <senha>`. Na primeira execução o app gera uma senha aleatória de 12 caracteres (gerador do serviço `ssl:C`) e a guarda em `sdmc:/3ds/3ds-remote/config.ini`.
+- A senha **só muda no console** (tela de toque). Nenhum endpoint altera a configuração e o `config.ini` não pode ser lido nem escrito pela API.
+- **5 senhas erradas seguidas** bloqueiam novos logins por 30 s (HTTP 429).
+- Caminhos com `..` ou `\` são recusados.
+- Toda leitura e escrita de rede tem tempo limite de 15 s, para um cliente parado não travar o servidor.
+- **Pausar** fecha a porta de verdade, e o servidor só escuta enquanto o app está aberto.
+- Desligar a senha pede confirmação (dois toques).
+- **Limite:** é HTTP sem TLS, então a senha passa em texto puro pela rede local. Use só em rede de confiança.
 
 ## Rotina a cada boot do 3DS
 
@@ -86,6 +112,7 @@ Para testar sem instalar: Homebrew Launcher → **Y**, depois
 
 | Método | Caminho | Notas |
 |---|---|---|
+| GET | `/ping` | sem senha |
 | GET | `/status` | |
 | GET | `/titles?media=sd\|nand\|card` | nome vem do SMDH |
 | POST | `/install?media=sd` | corpo = CIA cru, com `Content-Length` |
@@ -95,7 +122,7 @@ Para testar sem instalar: Homebrew Launcher → **Y**, depois
 | GET/PUT/DELETE | `/file?path=/x` | PUT cria as pastas pai |
 | POST | `/reboot`, `/shutdown`, `/exit` | |
 
-Erros vêm como `{"error": "...", "result": "0x..."}`.
+Todas as rotas, menos `/ping`, exigem `Authorization: Bearer <senha>` (ou `X-Auth-Token`). Erros vêm como `{"error": "...", "result": "0x..."}`, com 401 (sem senha ou senha errada) e 429 (bloqueado).
 
 ## Notas
 
