@@ -1,0 +1,11 @@
+build/
+*.3dsx
+*.elf
+*.smdh
+*.map
+*.cia
+__pycache__/
+tools/bannertool
+tools/bannertool-src/
+tools/makerom
+.DS_Store
